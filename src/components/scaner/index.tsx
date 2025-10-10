@@ -28,7 +28,7 @@ const WEBHOOK_GROUPS_URL =
   import.meta.env.VITE_WEBHOOK_GROUPS_URL ||
   "http://localhost:5678/webhook/grupos";
 
-export const CreateInstanceWithQR: React.FC = () => {
+export const Scanner: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [qrData, setQrData] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);

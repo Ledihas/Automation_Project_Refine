@@ -21,21 +21,16 @@ import routerProvider, {
 import { App as AntdApp } from "antd";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 import { authProvider } from "./authProvider";
-import { Header, Entrada,CreateInstanceWithQR } from "./components";
+import { Header, Entrada } from "./components";
 import { ColorModeContextProvider } from "./contexts/color-mode";
 
-import {
-  CategoryCreate,
-  CategoryEdit,
-  CategoryList,
-  CategoryShow,
-} from "./pages/categories";
+import { ScannerPage} from "./pages/whatsapp"
 import { appwriteClient } from "./utility";
 
 function App() {
   return (
     <BrowserRouter>
-      <GitHubBanner />
+      
       <RefineKbarProvider>
         <ColorModeContextProvider>
           <AntdApp>
@@ -53,20 +48,16 @@ function App() {
                 resources={[
                   
                   {
-                    name: "categories",
-                    list: "/categories",
-                    create: "/categories/create",
-                    edit: "/categories/edit/:id",
-                    show: "/categories/show/:id",
-                    meta: {
-                      canDelete: true,
-                    },
+                    name: "Whatsapp ",
+                    list: "whatsapp",
+                    
                   },
                 ]}
                 options={{
                   syncWithLocation: true,
                   warnWhenUnsavedChanges: true,
                   projectId: "rXYWZJ-vUSi4m-2cDzxu",
+                  title:{text:"Automation Site"},
                 }}
               >
                 <Routes>
@@ -81,7 +72,7 @@ function App() {
                           Sider={(props) => <ThemedSider {...props} fixed />}
                         >
                           <Entrada />
-                          <CreateInstanceWithQR />
+                          
                           <Outlet />
                           </ThemedLayout>
                       </Authenticated>
@@ -91,12 +82,7 @@ function App() {
                       index
                       element={<NavigateToResource resource="blog_posts" />}
                     />
-                    <Route path="/categories">
-                      <Route index element={<CategoryList />} />
-                      <Route path="create" element={<CategoryCreate />} />
-                      <Route path="edit/:id" element={<CategoryEdit />} />
-                      <Route path="show/:id" element={<CategoryShow />} />
-                    </Route>
+                    
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
                   <Route
@@ -116,8 +102,8 @@ function App() {
                           type="login"
                           formProps={{
                             initialValues: {
-                              email: "demo@refine.dev",
-                              password: "demodemo",
+                              email: "ejemplo@gmail.com",
+                              password: "claveSegura123",
                             },
                           }}
                         />
@@ -131,6 +117,20 @@ function App() {
                       path="/forgot-password"
                       element={<AuthPage type="forgotPassword" />}
                     />
+                  </Route>
+
+                  <Route
+                  path="/whatsapp"
+                    element={
+                      <Authenticated
+                      key="authenticated-outer"
+                        fallback={<Outlet />}
+                      >
+                        <ScannerPage />
+                      </Authenticated>
+
+                    }
+                  >
                   </Route>
                 </Routes>
 

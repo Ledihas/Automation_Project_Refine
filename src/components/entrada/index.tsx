@@ -1,19 +1,17 @@
 import type { RefineThemedLayoutHeaderProps } from "@refinedev/antd";
 import { useGetIdentity } from "@refinedev/core";
 import {
-  Layout as AntdLayout,
-  Avatar,
-  Space,
-  Switch,
+  
+  
   theme,
   Typography,
 } from "antd";
-import React, { useContext } from "react";
+import React from "react";
 
 const { Text } = Typography;
 const { useToken } = theme;
 
-export const Entrada: React.FC<RefineThemedLayoutHeaderProps> = ({}) => {
+export const Entrada: React.FC<RefineThemedLayoutHeaderProps> = () => {
     const { token } = useToken();
     const { data: user } = useGetIdentity();
     
@@ -29,8 +27,8 @@ export const Entrada: React.FC<RefineThemedLayoutHeaderProps> = ({}) => {
             width: "100vw",
             
         }}>           
-            <Text strong style={{ marginRight: "8px", fontSize: 80 }}>
-                Bienvenido {user?.name}
+            <Text strong style={{ marginRight: "8px", fontSize: 80 }} >
+                Más fácil {user?.name}
             </Text>
         </section>
     );

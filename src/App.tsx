@@ -1,4 +1,4 @@
-import { Authenticated, GitHubBanner, Refine } from "@refinedev/core";
+import { Authenticated, Refine } from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
@@ -26,6 +26,7 @@ import { ColorModeContextProvider } from "./contexts/color-mode";
 
 import { ScannerPage} from "./pages/whatsapp"
 import { appwriteClient } from "./utility";
+import { ConectPage } from "./pages/facebook/conect";
 
 function App() {
   return (
@@ -52,6 +53,11 @@ function App() {
                     list: "whatsapp",
                     
                   },
+                  {
+                    name: "Facebook",
+                    list: "facebook/connect",
+                    
+                  }
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -131,6 +137,20 @@ function App() {
 
                     }
                   >
+                  </Route>
+
+                  <Route
+                   path="/facebook/connect"
+                    element={
+                      <Authenticated
+                      key="authenticated-outer"
+                        fallback={<Outlet />}
+                      >
+                        <ConectPage />
+                      </Authenticated>
+
+                    }
+                  >              
                   </Route>
                 </Routes>
 

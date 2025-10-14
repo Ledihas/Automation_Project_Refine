@@ -8,10 +8,11 @@ import {
   FormControlLabel,
   TextField,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
   Tooltip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -23,10 +24,30 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8080";
 const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
 const WEBHOOK_URL =
   import.meta.env.VITE_WEBHOOK_URL ||
-  "http://localhost:5678/webhook-test/3f86bf11-685e-4a06-a8c8-e7584cdcad64";
+  "http://localhost:5678/webhook/whatsappsms";
 const WEBHOOK_GROUPS_URL =
   import.meta.env.VITE_WEBHOOK_GROUPS_URL ||
-  "http://localhost:5678/webhook/grupos";
+  "http://localhost:5678/webhook/groups";
+
+const countryCodes = [
+  { code: "+1", name: "EE.UU / Canadá" },
+  { code: "+52", name: "México" },
+  { code: "+57", name: "Colombia" },
+  { code: "+51", name: "Perú" },
+  { code: "+58", name: "Venezuela" },
+  { code: "+54", name: "Argentina" },
+  { code: "+55", name: "Brasil" },
+  { code: "+56", name: "Chile" },
+  { code: "+593", name: "Ecuador" },
+  { code: "+507", name: "Panamá" },
+  { code: "+502", name: "Guatemala" },
+  { code: "+503", name: "El Salvador" },
+  { code: "+504", name: "Honduras" },
+  { code: "+505", name: "Nicaragua" },
+  { code: "+506", name: "Costa Rica" },
+  { code: "+53", name: "Cuba" },
+  { code: "+1-809", name: "República Dominicana" },
+];
 
 export const Scanner: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -35,7 +56,7 @@ export const Scanner: React.FC = () => {
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [target, setTarget] = useState<string>("contacts");
-  const [messages, setMessages] = useState<string[]>(["", "", "", ""]); // 4 versiones del mensaje
+  const [messages, setMessages] = useState<string[]>(["", "", "", ""]);
   const [recipients, setRecipients] = useState<string[]>([]);
   const [newCountryCode, setNewCountryCode] = useState<string>("+1");
   const [newPhone, setNewPhone] = useState<string>("");
@@ -171,7 +192,7 @@ export const Scanner: React.FC = () => {
     notification.info({
       message: "¿Por qué 4 mensajes?",
       description:
-        "Se solicitan 4 versiones del mensaje para que el sistema elija aleatoriamente cuál enviar en cada ocasión. Esto ayuda a evitar que WhatsApp detecte patrones repetitivos y bloquee el envío por posible spam. Los enlaces que incluyas se mantendrán intactos.",
+        "Se solicitan 4 versiones del mensaje para que el sistema elija aleatoriamente cuál enviar en cada ocasión. Esto ayuda a evitar bloqueos de WhatsApp por spam.",
       duration: 8,
     });
   };
@@ -207,8 +228,14 @@ export const Scanner: React.FC = () => {
         message: "Número inválido",
         description: "Verifique el número e intente nuevamente.",
       });
-    setRecipients((prev) => [...prev, cleanPhone]);
+
+    setRecipients((prev) => [...prev, `${newCountryCode} ${newPhone}`]);
     setNewPhone("");
+  };
+
+  /** 🔹 Eliminar destinatario */
+  const removeRecipient = (index: number) => {
+    setRecipients((prev) => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -219,8 +246,19 @@ export const Scanner: React.FC = () => {
   }, []);
 
   return (
-    <Card style={{ display: "flex", gap: "20px", backgroundColor: "transparent" }}>
-      <CardContent style={{ color: "white", flex: 1 }}>
+    <Card
+      style={{
+        display: "flex",
+        gap: "20px",
+        backgroundColor: "rgba(255,255,255,0.05)",
+        color: "white",
+        padding: "2rem",
+        borderRadius: "12px",
+        border: "1px solid rgba(255,255,255,0.15)",
+      }}
+    >
+      {/* 🔹 Panel izquierdo - QR */}
+      <CardContent style={{ flex: 1 }}>
         <Button variant="contained" color="primary" onClick={createInstance}>
           {loading ? "Creando..." : "Crear instancia y obtener QR"}
         </Button>
@@ -228,18 +266,17 @@ export const Scanner: React.FC = () => {
         {instanceName && <p>Instancia: {instanceName}</p>}
 
         {qrData && (
-          <div>
+          <div style={{ textAlign: "center", marginTop: 20 }}>
             <p>Escanea este QR con WhatsApp:</p>
             <QRCodeCanvas
               value={qrData}
-              size={400}
+              size={300}
               level="H"
-              bgColor="#ffffff"
-              fgColor="#000000"
               includeMargin={true}
             />
           </div>
         )}
+
         {pairingCode && (
           <p style={{ marginTop: 12, fontWeight: "bold" }}>
             Para vincular con el número de teléfono: {pairingCode}
@@ -249,13 +286,15 @@ export const Scanner: React.FC = () => {
         {status && <p>Estado: {status}</p>}
       </CardContent>
 
+      {/* 🔹 Panel derecho */}
       {status === "open" && (
-        <CardContent style={{ flex: 1, color: "white" }}>
+        <CardContent style={{ flex: 1 }}>
           <p>
-            Si desea entrar a más de 600 grupos de USA destinados a{" "}
+            Si desea entrar a más de 600 grupos de USA de{" "}
             <strong>marketing</strong> y <strong>ventas</strong>, seleccione{" "}
             <strong>Unirse a grupos</strong>.
           </p>
+
           <Button
             variant="contained"
             color="primary"
@@ -265,14 +304,100 @@ export const Scanner: React.FC = () => {
             Unirse a grupos
           </Button>
 
-          <h3>¿Quién prefiere que le envíe la publicación?</h3>
+          <h3>¿A quién desea enviar las publicaciones?</h3>
           <RadioGroup value={target} onChange={(e) => setTarget(e.target.value)}>
-            <FormControlLabel value="contacts" control={<Radio />} label="Contactos específicos" />
+            <FormControlLabel
+              value="contacts"
+              control={<Radio />}
+              label="Contactos específicos"
+            />
             <FormControlLabel value="groups" control={<Radio />} label="Todos los grupos" />
           </RadioGroup>
 
-          {/* Inputs para las 4 versiones del mensaje */}
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+          {/* 🔹 Inputs para contactos */}
+          {target === "contacts" && (
+            <div
+              style={{
+                marginTop: 12,
+                backgroundColor: "rgba(255,255,255,0.08)",
+                padding: 12,
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <FormControl size="small" style={{ minWidth: 140 }}>
+                  <InputLabel style={{ color: "white" }}>País</InputLabel>
+                  <Select
+                    value={newCountryCode}
+                    onChange={(e) => setNewCountryCode(e.target.value)}
+                    label="País"
+                    sx={{
+                      color: "white",
+                      ".MuiSvgIcon-root": { color: "white" },
+                      ".MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(255,255,255,0.3)",
+                      },
+                    }}
+                  >
+                    {countryCodes.map((c) => (
+                      <MenuItem key={c.code} value={c.code}>
+                        {c.name} ({c.code})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  label="Número"
+                  variant="outlined"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="Ej: 8095551234"
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    backgroundColor: "white",
+                    borderRadius: 1,
+                  }}
+                />
+
+                <Button
+                  variant="outlined"
+                  onClick={addRecipient}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  Añadir
+                </Button>
+              </div>
+
+              {recipients.length > 0 && (
+                <ul style={{ marginTop: 12, paddingLeft: 20 }}>
+                  {recipients.map((r, i) => (
+                    <li
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      {r}
+                      <IconButton
+                        size="small"
+                        onClick={() => removeRecipient(i)}
+                        sx={{ color: "red" }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* 🔹 Versiones de mensaje */}
+          <div style={{ display: "flex", alignItems: "center", marginTop: 24 }}>
             <h4 style={{ marginRight: 8 }}>Versiones del mensaje</h4>
             <Tooltip title="Más información">
               <IconButton size="small" onClick={showInfo}>
@@ -295,7 +420,11 @@ export const Scanner: React.FC = () => {
                 newMessages[i] = e.target.value;
                 setMessages(newMessages);
               }}
-              style={{ marginBottom: 12, backgroundColor: "white", borderRadius: 8 }}
+              style={{
+                marginBottom: 12,
+                backgroundColor: "white",
+                borderRadius: 8,
+              }}
             />
           ))}
 

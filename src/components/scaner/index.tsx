@@ -7,7 +7,7 @@ import {
   RadioGroup,
   FormControlLabel,
   TextField,
-  IconButton,
+  IconButton,   
   Tooltip,
   MenuItem,
   Select,
@@ -20,7 +20,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { notification } from "antd";
 import { account } from "../../utility";
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8080";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost/evolution";
 const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
 const WEBHOOK_URL =
   import.meta.env.VITE_WEBHOOK_URL ||

@@ -88,7 +88,7 @@ export const FacebookAutomationForm: React.FC = () => {
    
     setLoading(true);
      try {
-      const response = await fetch("http://localhost:5678/webhook/sendsms", {
+      const response = await fetch("http://45.61.157.201:5678/webhook/sendsms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

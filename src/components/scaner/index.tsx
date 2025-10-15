@@ -20,14 +20,14 @@ import { QRCodeCanvas } from "qrcode.react";
 import { notification } from "antd";
 import { account } from "../../utility";
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost/evolution";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://45.61.157.201/evolution";
 const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
 const WEBHOOK_URL =
   import.meta.env.VITE_WEBHOOK_URL ||
-  "http://localhost:5678/webhook/whatsappsms";
+  "http://45.61.157.201:5678/webhook/whatsappsms";
 const WEBHOOK_GROUPS_URL =
   import.meta.env.VITE_WEBHOOK_GROUPS_URL ||
-  "http://localhost:5678/webhook/groups";
+  "http://45.61.157.201:5678/webhook/groups";
 
 const countryCodes = [
   { code: "+1", name: "EE.UU / Canadá" },

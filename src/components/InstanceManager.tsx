@@ -234,6 +234,7 @@ export const InstanceManager: React.FC = () => {
         instanceName: fullInstanceName,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
+        syncFullHistory: false,
         alwaysOnline: true,
         groupsIgnore: true,
         webhook: {

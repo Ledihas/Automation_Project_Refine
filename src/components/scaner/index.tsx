@@ -73,7 +73,7 @@ export const Scanner: React.FC = () => {
   const navigate = useNavigate();
 
   // Cargar instancias guardadas del usuario desde Appwrite
-  useEffect(() => {
+ useEffect(() => {
     const fetchInstances = async () => {
       try {
         const user = await account.get();
@@ -81,8 +81,18 @@ export const Scanner: React.FC = () => {
         const res = await databases.listDocuments(databaseId, collectionId, [
           Query.equal("user_id", user.$id),
         ]);
-        // res.documents puede ser any[] — forzamos al tipo Instance[]
-        setInstances(Array.isArray(res.documents) ? (res.documents as Instance[]) : []);
+
+        // ✅ Convertir correctamente Document[] → Instance[]
+        const mappedInstances: Instance[] = (res.documents || []).map((doc: any) => ({
+          $id: doc.$id,
+          instance_name: doc.instance_name,
+          status: doc.status,
+          user_id: doc.user_id,
+          api_key: doc.api_key,
+          created_at: doc.created_at,
+        }));
+
+        setInstances(mappedInstances);
       } catch (error) {
         console.error("Error obteniendo instancias:", error);
         notification.error({ message: "Error obteniendo instancias" });
@@ -90,6 +100,7 @@ export const Scanner: React.FC = () => {
     };
     fetchInstances();
   }, []);
+
 
   /** Crear nueva instancia */
   const createInstance = async () => {

@@ -1,0 +1,472 @@
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  Typography,
+  Input,
+  Button,
+  Select,
+  message,
+  List,
+  Tag,
+  InputNumber,
+  Divider,
+} from "antd";
+import { DeleteOutlined, SendOutlined, PlusOutlined } from "@ant-design/icons";
+import { account, appwriteClient } from "../../utility";
+import { Databases, ID, Query } from "appwrite";
+import { useNavigate } from "react-router-dom";
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+// Interfaces
+interface Contact {
+  phone: string;
+  countryCode: string;
+}
+
+interface Instance {
+  $id: string;
+  instance_name: string;
+  status: string;
+  user_id: string;
+  api_key: string;
+}
+
+// Variables de entorno
+const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8080";
+const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || "http://localhost:5678/webhook/whatsappsms";
+const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+const collectionId = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
+
+// Códigos de país
+const countryCodes = [
+  { code: "+1", name: "EE.UU / Canadá" },
+  { code: "+52", name: "México" },
+  { code: "+57", name: "Colombia" },
+  { code: "+51", name: "Perú" },
+  { code: "+58", name: "Venezuela" },
+  { code: "+54", name: "Argentina" },
+  { code: "+55", name: "Brasil" },
+  { code: "+56", name: "Chile" },
+  { code: "+593", name: "Ecuador" },
+  { code: "+507", name: "Panamá" },
+  { code: "+53", name: "Cuba" },
+];
+
+// Componentes auxiliares
+const InstanceItem: React.FC<{
+  instance: Instance;
+  onDelete: (name: string, id: string) => void;
+  onManage: (name: string) => void;
+}> = ({ instance, onDelete, onManage }) => (
+  <List.Item
+    actions={[
+      <Button
+        key="manage"
+        type="link"
+        onClick={() => onManage(instance.instance_name)}
+      >
+        Gestionar Grupos
+      </Button>,
+      <Button
+        key="delete"
+        type="text"
+        danger
+        icon={<DeleteOutlined />}
+        onClick={() => onDelete(instance.instance_name, instance.$id)}
+      />
+    ]}
+  >
+    <List.Item.Meta
+      title={instance.instance_name}
+      description={
+        <Tag color={instance.status === 'connected' ? 'success' : 'warning'}>
+          {instance.status === 'connected' ? '✅ Conectado' : '⌛ Pendiente'}
+        </Tag>
+      }
+    />
+  </List.Item>
+);
+
+// Componente principal
+export const Scanner: React.FC = () => {
+  const navigate = useNavigate();
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<string[]>(['']);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>(countryCodes[0].code);
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [messageInterval, setMessageInterval] = useState<number>(5);
+  const [isSending, setIsSending] = useState(false);
+  const [sendingStatus, setSendingStatus] = useState('');
+
+  // Cargar instancias al montar el componente
+  useEffect(() => {
+    fetchInstances();
+  }, []);
+
+  // Funciones de gestión de instancias
+  const fetchInstances = async () => {
+    try {
+      const user = await account.get();
+      const databases = new Databases(appwriteClient);
+      const response = await databases.listDocuments(
+        databaseId,
+        collectionId,
+        [Query.equal("user_id", user.$id)]
+      );
+      setInstances(response.documents as unknown as Instance[]);
+    } catch (error) {
+      console.error("Error al obtener instancias:", error);
+      message.error("No se pudieron cargar las instancias");
+    }
+  };
+
+  const createInstance = async () => {
+    setLoading(true);
+    try {
+      const instanceName = "Instancia_" + Date.now();
+      
+      const createRes = await fetch(`${SERVER_URL}/instance/create`, {
+        method: "POST",
+        headers: { 
+          apikey: API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          instanceName,
+          integration: "WHATSAPP-BAILEYS",
+          qrcode: false,
+          alwaysOnline: true
+        })
+      });
+
+      if (!createRes.ok) {
+        throw new Error("Error al crear la instancia en el servidor");
+      }
+
+      const user = await account.get();
+      const databases = new Databases(appwriteClient);
+      await databases.createDocument(
+        databaseId,
+        collectionId,
+        ID.unique(),
+        {
+          user_id: user.$id,
+          instance_name: instanceName,
+          api_key: API_KEY,
+          status: "pending"
+        }
+      );
+
+      message.success("Instancia creada correctamente");
+      await fetchInstances();
+      navigate(`/whatsapp/scan/${instanceName}`);
+
+    } catch (error) {
+      console.error("Error al crear instancia:", error);
+      message.error("No se pudo crear la instancia");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteInstance = async (name: string, id: string) => {
+    try {
+      await fetch(`${SERVER_URL}/instance/delete/${name}`, {
+        method: "DELETE",
+        headers: { apikey: API_KEY }
+      });
+
+      const databases = new Databases(appwriteClient);
+      await databases.deleteDocument(databaseId, collectionId, id);
+
+      message.success("Instancia eliminada correctamente");
+      setInstances(prev => prev.filter(inst => inst.$id !== id));
+
+    } catch (error) {
+      console.error("Error al eliminar instancia:", error);
+      message.error("Error al eliminar la instancia");
+    }
+  };
+
+  // Funciones de gestión de contactos y mensajes
+  const addContact = () => {
+    if (!phoneNumber.trim()) {
+      message.warning('Ingrese un número de teléfono');
+      return;
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.length < 8) {
+      message.warning('Número de teléfono inválido');
+      return;
+    }
+
+    setContacts(prev => [...prev, { 
+      countryCode: selectedCountry, 
+      phone: cleanPhone 
+    }]);
+    setPhoneNumber('');
+    message.success('Contacto agregado');
+  };
+
+  const removeContact = (index: number) => {
+    setContacts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addMessage = () => {
+    setMessages(prev => [...prev, '']);
+  };
+
+  const updateMessage = (index: number, value: string) => {
+    setMessages(prev => prev.map((msg, i) => i === index ? value : msg));
+  };
+
+  const removeMessage = (index: number) => {
+    if (messages.length > 1) {
+      setMessages(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const saveMessagesToAppwrite = async (messages: string[]) => {
+    try {
+      const thisuser = await account.get();
+      const databases = new Databases(appwriteClient);
+
+      const savePromises = messages.map(text => 
+        databases.createDocument(
+          '68e04a01000dcda6e6cb',
+          'old_messajes',
+          ID.unique(),
+          {
+            text,
+            instance_name: instances[0]?.instance_name || '',
+            user: thisuser.$id
+          }
+        )
+      );
+
+      await Promise.all(savePromises);
+      message.success('Mensajes guardados en el historial');
+    } catch (error) {
+      console.error('Error guardando mensajes:', error);
+      message.error('Error al guardar mensajes en el historial');
+    }
+  };
+
+  const sendMessages = async () => {
+    if (instances.length === 0) {
+      message.error('No hay instancia seleccionada');
+      return;
+    }
+
+    if (contacts.length === 0) {
+      message.warning('Agregue al menos un contacto');
+      return;
+    }
+
+    const validMessages = messages.filter(msg => msg.trim());
+    if (validMessages.length === 0) {
+      message.warning('Agregue al menos un mensaje');
+      return;
+    }
+
+    setIsSending(true);
+    setSendingStatus('Enviando mensajes...');
+
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY
+        },
+        body: JSON.stringify({
+          messages: validMessages,
+          recipients: contacts.map(c => c.countryCode + c.phone),
+          instanceName: instances[0].instance_name,
+          messageInterval
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al enviar los mensajes');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'ok' || result.success) {
+        await saveMessagesToAppwrite(validMessages);
+        setSendingStatus('✅ Mensajes enviados exitosamente');
+        message.success('Mensajes enviados correctamente');
+      } else {
+        throw new Error('Error en el envío de mensajes');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setSendingStatus('❌ Error al enviar los mensajes');
+      message.error('Error al enviar los mensajes');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Panel de Gestión de Instancias */}
+        <Card title="Gestión de Instancias de WhatsApp">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={createInstance}
+              loading={loading}
+            >
+              Crear Nueva Instancia
+            </Button>
+
+            <List
+              dataSource={instances}
+              renderItem={instance => (
+                <InstanceItem
+                  instance={instance}
+                  onDelete={deleteInstance}
+                  onManage={(name) => navigate(`/whatsapp/groups/${name}`)}
+                />
+              )}
+            />
+          </div>
+        </Card>
+
+        {/* Panel de Envío de Mensajes */}
+        <Card title="Envío de Mensajes a Contactos">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Sección de Contactos */}
+            <div>
+              <Title level={4}>Agregar Contactos</Title>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <Select
+                  value={selectedCountry}
+                  onChange={setSelectedCountry}
+                  style={{ width: 150 }}
+                >
+                  {countryCodes.map(c => (
+                    <Select.Option key={c.code} value={c.code}>
+                      {c.name} ({c.code})
+                    </Select.Option>
+                  ))}
+                </Select>
+                <Input
+                  placeholder="Número de teléfono"
+                  value={phoneNumber}
+                  onChange={e => setPhoneNumber(e.target.value)}
+                  style={{ width: 200 }}
+                />
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />}
+                  onClick={addContact}
+                >
+                  Agregar
+                </Button>
+              </div>
+
+              <List
+                bordered
+                dataSource={contacts}
+                renderItem={(contact, index) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => removeContact(index)}
+                      />
+                    ]}
+                  >
+                    <Text>{contact.countryCode} {contact.phone}</Text>
+                  </List.Item>
+                )}
+              />
+            </div>
+
+            <Divider />
+
+            {/* Sección de Mensajes */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <Title level={4}>Mensajes</Title>
+                <Button type="primary" ghost onClick={addMessage}>
+                  Agregar Mensaje
+                </Button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {messages.map((message, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '8px' }}>
+                    <TextArea
+                      value={message}
+                      onChange={e => updateMessage(index, e.target.value)}
+                      placeholder={`Mensaje ${index + 1}`}
+                      rows={3}
+                      style={{ flex: 1 }}
+                    />
+                    {messages.length > 1 && (
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => removeMessage(index)}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Divider />
+
+            {/* Configuración de Intervalo */}
+            <div>
+              <Title level={5}>Intervalo entre mensajes</Title>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <InputNumber
+                  min={1}
+                  max={60}
+                  value={messageInterval}
+                  onChange={value => setMessageInterval(value || 5)}
+                />
+                <Text type="secondary">segundos</Text>
+              </div>
+            </div>
+
+            {/* Botón de Envío */}
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={sendMessages}
+              loading={isSending}
+              size="large"
+            >
+              {isSending ? 'Enviando...' : 'Enviar Mensajes'}
+            </Button>
+
+            {sendingStatus && (
+              <div style={{ textAlign: 'center' }}>
+                <Text type={sendingStatus.includes('✅') ? 'success' : 'danger'}>
+                  {sendingStatus}
+                </Text>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};

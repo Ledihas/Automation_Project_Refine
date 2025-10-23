@@ -1,6 +1,7 @@
 import { Authenticated, Refine } from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
+import { ScanInstance } from "./pages/whatsapp/scanIstance";
 
 import {
   AuthPage,
@@ -27,6 +28,8 @@ import { ColorModeContextProvider } from "./contexts/color-mode";
 import { ScannerPage} from "./pages/whatsapp"
 import { appwriteClient } from "./utility";
 import { ConectPage } from "./pages/facebook/conect";
+
+import { GroupsManager } from "./pages/whatsapp/GroupsManager";
 
 function App() {
   return (
@@ -126,18 +129,27 @@ function App() {
                   </Route>
 
                   <Route
-                  path="/whatsapp"
-                    element={
-                      <Authenticated
-                      key="authenticated-outer"
-                        fallback={<Outlet />}
-                      >
-                        <ScannerPage />
-                      </Authenticated>
-
-                    }
-                  >
+                  
+                      path="/whatsapp"
+                      element={
+                        <ThemedLayout
+                          Header={Header}
+                          Sider={(props) => <ThemedSider {...props} fixed />}
+                        >
+                          <ScannerPage />
+                          
+                          <Outlet />
+                          </ThemedLayout>
+                      }
+                    >
+                    
+                      {/* Página del QR */}
+                      
                   </Route>
+                  
+                  <Route path="/whatsapp/scan/:instanceName" element={
+                        <ScanInstance />} />
+                  
 
                   <Route
                    path="/facebook/connect"
@@ -152,6 +164,19 @@ function App() {
                     }
                   >              
                   </Route>
+
+                  <Route
+                    path="/whatsapp/groups/:instanceName"
+                    element={
+                      <ThemedLayout
+                          Header={Header}
+                          Sider={(props) => <ThemedSider {...props} fixed />}
+                        >
+                        <GroupsManager />
+                        </ThemedLayout>
+                      
+                    }
+                  />
                 </Routes>
 
                 <RefineKbar />

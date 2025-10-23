@@ -28,7 +28,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 // Variables de entorno
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8080";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://45.61.157.201/evolution";
 const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
 const WEBHOOK_URL =
   import.meta.env.VITE_WEBHOOK_URL || "http://localhost:5678/webhook/whatsappsms";

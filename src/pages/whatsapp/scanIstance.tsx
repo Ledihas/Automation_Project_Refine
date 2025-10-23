@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 
 const API_KEY = "BQYHJGJHJ";
-const SERVER_URL = "http://localhost:8080";
+const SERVER_URL = "http://45.61.157.201/evolution";
 
 export const ScanInstance: React.FC = () => {
   const { instanceName } = useParams();

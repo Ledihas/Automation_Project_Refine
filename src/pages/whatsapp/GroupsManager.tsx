@@ -130,7 +130,7 @@ export const GroupsManager = () => {
 
     try {
       const response = await fetch(
-        'http://localhost:5678/webhook/registered-groups',
+        'http://45.61.157.201:5678/webhook/registered-groups',
         {
           method: 'POST',
           headers: {
@@ -199,7 +199,7 @@ export const GroupsManager = () => {
 
     try {
       const response = await fetch(
-        'http://localhost:5678/webhook/whatsappsms',
+        'http://45.61.157.201:5678/webhook/whatsappsms',
         {
           method: 'POST',
           headers: {
@@ -246,7 +246,7 @@ export const GroupsManager = () => {
 
     try {
       const response = await fetch(
-        'http://localhost:5678/webhook/allgroups',
+        'http://45.61.157.201:5678/webhook/allgroups',
         {
           method: 'POST',
           headers: {
@@ -293,7 +293,7 @@ export const GroupsManager = () => {
         
         try {
           const res = await fetch(
-            `http://localhost:5678/webhook/groups`,
+            `http://45.61.157.201:5678/webhook/groups`,
             {
               method: "POST",
               headers: { 

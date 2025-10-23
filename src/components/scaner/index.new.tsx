@@ -37,7 +37,7 @@ interface Instance {
 // Variables de entorno
 const API_KEY = import.meta.env.VITE_API_KEY || "BQYHJGJHJ";
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://45.61.157.201/evolution";
-const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || "http://localhost:5678/webhook/whatsappsms";
+const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || "http://45.61.157.201:5678/webhook/whatsappsms";
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const collectionId = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
 

@@ -26,8 +26,11 @@ import { ColorModeContextProvider } from "./contexts/color-mode";
 import { appwriteClient } from "./utility";
 
 function App() {
+  // Detectar si estamos en producción con Nginx
+  const basename = import.meta.env.VITE_USE_BASE_PATH === 'true' ? '/whatsapp' : '';
+  
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       
       <RefineKbarProvider>
         <ColorModeContextProvider>

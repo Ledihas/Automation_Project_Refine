@@ -37,11 +37,6 @@ export const InstanceManager: React.FC = () => {
   const apiKey = import.meta.env.VITE_API_KEY;
   const botacoWebhookUrl = import.meta.env.VITE_BOTACO_WEBHOOK_URL || 'http://n8n:5678/webhook/botaco';
   
-  // En desarrollo local usa localhost, en Docker usa la red interna
-  const instanceApiUrl = typeof window !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-    ? 'http://localhost:8080/instance'
-    : 'http://evolution-api:8080/instance';
-  
   const databases = React.useMemo(() => new Databases(appwriteClient), []);
 
   const fetchInstances = React.useCallback(async () => {
@@ -135,11 +130,11 @@ export const InstanceManager: React.FC = () => {
       // Call EvolutionAPI to create instance
       console.log('Creating instance with:', {
         instanceName: fullInstanceName,
-        apiUrl: instanceApiUrl,
+        serverUrl: serverUrl,
         apiKey: apiKey ? '***' : 'MISSING'
       });
 
-      const evolutionResponse = await fetch(`${instanceApiUrl}/create`, {
+      const evolutionResponse = await fetch(`${serverUrl}/instance/create`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
@@ -240,12 +235,12 @@ export const InstanceManager: React.FC = () => {
         try {
           // Delete from EvolutionAPI first
           console.log('Attempting to delete from EvolutionAPI:', {
-            url: `${instanceApiUrl}/delete/${instanceName}`,
+            url: `${serverUrl}/instance/delete/${instanceName}`,
             instanceName
           });
 
           const evolutionResponse = await fetch(
-            `${instanceApiUrl}/delete/${instanceName}`,
+            `${serverUrl}/instance/delete/${instanceName}`,
             {
               method: 'DELETE',
               headers: {

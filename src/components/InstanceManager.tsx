@@ -35,6 +35,12 @@ export const InstanceManager: React.FC = () => {
   const serverUrl = import.meta.env.VITE_SERVER_URL;
   const apiKey = import.meta.env.VITE_API_KEY;
   const botacoWebhookUrl = import.meta.env.VITE_BOTACO_WEBHOOK_URL || 'http://n8n:5678/webhook/botaco';
+  
+  // En desarrollo local usa localhost, en Docker usa la red interna
+  const instanceApiUrl = typeof window !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:8080/instance'
+    : 'http://evolution-api:8080/instance';
+  
   const databases = React.useMemo(() => new Databases(appwriteClient), []);
 
   const fetchInstances = React.useCallback(async () => {
@@ -126,7 +132,13 @@ export const InstanceManager: React.FC = () => {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
       // Call EvolutionAPI to create instance
-      const evolutionResponse = await fetch(`/instance/create`, {
+      console.log('Creating instance with:', {
+        instanceName: fullInstanceName,
+        apiUrl: instanceApiUrl,
+        apiKey: apiKey ? '***' : 'MISSING'
+      });
+
+      const evolutionResponse = await fetch(`${instanceApiUrl}/create`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
@@ -147,8 +159,30 @@ export const InstanceManager: React.FC = () => {
         }),
       });
 
+      // Read response body for error handling
+      const responseText = await evolutionResponse.text();
+      console.log('Evolution API response:', {
+        status: evolutionResponse.status,
+        ok: evolutionResponse.ok,
+        headers: {
+          'content-type': evolutionResponse.headers.get('content-type')
+        },
+        bodyPreview: responseText.substring(0, 200)
+      });
+
       if (!evolutionResponse.ok) {
-        throw new Error('Error al crear instancia en EvolutionAPI');
+        const errorMsg = `Evolution API error (${evolutionResponse.status}): ${responseText || 'Sin respuesta'}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Try to parse response as JSON
+      let evolutionData;
+      try {
+        evolutionData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse Evolution API response as JSON:', responseText);
+        throw new Error(`Respuesta inválida de Evolution API: ${responseText.substring(0, 100)}`);
       }
 
       // Save instance to Appwrite
@@ -201,12 +235,12 @@ export const InstanceManager: React.FC = () => {
         try {
           // Delete from EvolutionAPI first
           console.log('Attempting to delete from EvolutionAPI:', {
-            url: `/instance/delete/${instanceName}`,
+            url: `${instanceApiUrl}/delete/${instanceName}`,
             instanceName
           });
 
           const evolutionResponse = await fetch(
-            `/instance/delete/${instanceName}`,
+            `${instanceApiUrl}/delete/${instanceName}`,
             {
               method: 'DELETE',
               headers: {

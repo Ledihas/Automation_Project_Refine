@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     host: true,
     proxy: {
       '/instance': {
-        target: process.env.VITE_SERVER_URL || 'http://localhost:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path,
       }

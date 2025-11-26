@@ -17,6 +17,7 @@ FROM base AS builder
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
 
+# Copiar código fuente (esto invalidará el caché si hay cambios)
 COPY . .
 
 # Build con variables de entorno

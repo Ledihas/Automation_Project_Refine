@@ -10,6 +10,11 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const COLLECTION_ID = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
 
+// En desarrollo local usa localhost, en Docker usa la red interna
+const INSTANCE_API_URL = typeof window !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/instance'
+  : 'http://evolution-api:8080/instance';
+
 export const ScanInstance: React.FC = () => {
   const { instanceName } = useParams();
   const navigate = useNavigate();
@@ -71,7 +76,7 @@ export const ScanInstance: React.FC = () => {
   // Fetch QR code from EvolutionAPI
   const fetchQr = async (name: string) => {
     try {
-      const res = await fetch(`/instance/connect/${name}`, {
+      const res = await fetch(`${INSTANCE_API_URL}/connect/${name}`, {
         method: "GET",
         headers: { apikey: API_KEY },
       });
@@ -94,7 +99,7 @@ export const ScanInstance: React.FC = () => {
   // Check instance connection status
   const checkStatus = async (name: string) => {
     try {
-      const res = await fetch(`/instance/connectionState/${name}`, {
+      const res = await fetch(`${INSTANCE_API_URL}/connectionState/${name}`, {
         headers: { apikey: API_KEY },
       });
 

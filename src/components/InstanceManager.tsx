@@ -137,10 +137,11 @@ export const InstanceManager: React.FC = () => {
           integration: 'WHATSAPP-BAILEYS',
           qrcode: false,
           alwaysOnline: true,
+          groupsIgnore: false,
           webhook: {
             url: botacoWebhookUrl,
-            byEvents: true,
-            base64: false,
+            byEvents: false,
+            base64: true,
             events: ['MESSAGES_UPSERT']
           }
         }),

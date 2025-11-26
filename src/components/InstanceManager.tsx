@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Badge, Typography, Row, Col, Spin, notification, Modal, Input, Form } from 'antd';
+import { Card, Button, Badge, Typography, Row, Col, Spin, notification, Modal, Input, Form, App } from 'antd';
 import { PlusOutlined, DeleteOutlined, WhatsAppOutlined, InfoCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
 import { appwriteClient } from '../utility/appwriteClient';
@@ -29,6 +29,7 @@ export const InstanceManager: React.FC = () => {
   const { data: identity } = useGetIdentity<{ $id: string }>();
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { modal } = App.useApp();
 
   const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
   const collectionId = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
@@ -209,9 +210,13 @@ export const InstanceManager: React.FC = () => {
       navigate(`/whatsapp/scan/${fullInstanceName}`);
     } catch (error) {
       console.error('Error creating instance:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       notification.error({
-        message: 'Error',
-        description: 'No se pudo crear la instancia. Intenta nuevamente.',
+        message: 'Error al crear instancia',
+        description: errorMessage.length > 100 
+          ? errorMessage.substring(0, 100) + '...' 
+          : errorMessage,
+        duration: 0, // No auto-close para que usuario pueda leer
       });
     } finally {
       setCreating(false);
@@ -221,7 +226,7 @@ export const InstanceManager: React.FC = () => {
   const handleDeleteInstance = (instanceId: string, instanceName: string) => {
     console.log('handleDeleteInstance called:', { instanceId, instanceName });
     
-    Modal.confirm({
+    modal.confirm({
       title: '¿Eliminar instancia?',
       icon: <ExclamationCircleOutlined />,
       content: `¿Estás seguro de que deseas eliminar la instancia "${instanceName}"? Esta acción no se puede deshacer.`,
@@ -270,7 +275,7 @@ export const InstanceManager: React.FC = () => {
           );
 
           // Remove from UI
-          setInstances((prev) => prev.filter((inst) => inst.$id !== instanceId));
+          setInstances((prev: any[]) => prev.filter((inst) => inst.$id !== instanceId));
 
           notification.success({
             message: 'Instancia eliminada',
@@ -396,7 +401,7 @@ export const InstanceManager: React.FC = () => {
           {newInstanceName && !nameError && (
             <div style={{ 
               padding: '12px', 
-              backgroundColor: '#f0f2f5', 
+              backgroundColor: 'InfoText' , 
               borderRadius: '4px',
               marginTop: '8px'
             }}>

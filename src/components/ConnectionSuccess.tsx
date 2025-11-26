@@ -50,14 +50,15 @@ export const ConnectionSuccess: React.FC<ConnectionSuccessProps> = ({
           </Text>
 
           {/* Information Text */}
-          <div style={{ 
-            padding: '20px', 
-            backgroundColor: '#f6ffed', 
+          <div style={{
+            padding: '20px',
+            backgroundColor: "gradeint(135deg, #4e4e4eff 0%, #f1f8ebff 100%)",
+            color: '#237804',
             borderRadius: '8px',
             border: '1px solid #b7eb8f',
             marginTop: '16px'
           }}>
-            <Paragraph style={{ marginBottom: '12px', fontSize: '15px' }}>
+            <Paragraph style={{ marginBottom: '12px', fontSize: '15px', color: '#237804' }}>
               Tu asistente de IA está activo y responderá automáticamente a tus clientes en WhatsApp.
             </Paragraph>
           </div>

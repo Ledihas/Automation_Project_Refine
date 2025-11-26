@@ -145,7 +145,7 @@ export const InstanceManager: React.FC = () => {
           integration: 'WHATSAPP-BAILEYS',
           qrcode: false,
           alwaysOnline: true,
-          groupsIgnore: false,
+          groupsIgnore: true,
           webhook: {
             url: botacoWebhookUrl,
             byEvents: false,

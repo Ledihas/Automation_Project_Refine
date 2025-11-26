@@ -71,7 +71,7 @@ export const ScanInstance: React.FC = () => {
   // Fetch QR code from EvolutionAPI
   const fetchQr = async (name: string) => {
     try {
-      const res = await fetch(`${SERVER_URL}/instance/connect/${name}`, {
+      const res = await fetch(`/instance/connect/${name}`, {
         method: "GET",
         headers: { apikey: API_KEY },
       });
@@ -94,7 +94,7 @@ export const ScanInstance: React.FC = () => {
   // Check instance connection status
   const checkStatus = async (name: string) => {
     try {
-      const res = await fetch(`${SERVER_URL}/instance/connectionState/${name}`, {
+      const res = await fetch(`/instance/connectionState/${name}`, {
         headers: { apikey: API_KEY },
       });
 

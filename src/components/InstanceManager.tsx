@@ -126,7 +126,7 @@ export const InstanceManager: React.FC = () => {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
       // Call EvolutionAPI to create instance
-      const evolutionResponse = await fetch(`${serverUrl}/instance/create`, {
+      const evolutionResponse = await fetch(`/instance/create`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
@@ -200,18 +200,32 @@ export const InstanceManager: React.FC = () => {
 
         try {
           // Delete from EvolutionAPI first
+          console.log('Attempting to delete from EvolutionAPI:', {
+            url: `/instance/delete/${instanceName}`,
+            instanceName
+          });
+
           const evolutionResponse = await fetch(
-            `${serverUrl}/instance/delete/${instanceName}`,
+            `/instance/delete/${instanceName}`,
             {
               method: 'DELETE',
               headers: {
                 'apikey': apiKey,
+                'Content-Type': 'application/json',
               },
             }
           );
 
+          const responseText = await evolutionResponse.text();
+          console.log('Evolution API response:', {
+            status: evolutionResponse.status,
+            ok: evolutionResponse.ok,
+            responseText
+          });
+
           if (!evolutionResponse.ok) {
-            throw new Error('Error al eliminar instancia de EvolutionAPI');
+            const errorMsg = `Evolution API error: ${evolutionResponse.status} - ${responseText || 'No response'}`;
+            throw new Error(errorMsg);
           }
 
           // Delete from Appwrite only if EvolutionAPI deletion succeeds
@@ -230,9 +244,11 @@ export const InstanceManager: React.FC = () => {
           });
         } catch (error) {
           console.error('Error deleting instance:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
           notification.error({
-            message: 'Error',
-            description: 'No se pudo eliminar la instancia. Verifica tu conexión.',
+            message: 'Error al eliminar',
+            description: errorMessage,
+            duration: 0, // No auto-close so user can read the full error
           });
         } finally {
           setDeletingId(null);

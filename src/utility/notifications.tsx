@@ -43,7 +43,7 @@ const notificationStyles = {
 
 interface NotifyOptions {
   message: string;
-  description?: string;
+  description?: React.ReactNode;
   duration?: number;
   key?: string;
 }

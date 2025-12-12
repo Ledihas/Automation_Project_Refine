@@ -12,6 +12,7 @@ const { Title, Text } = Typography;
 
 // Chatwoot configuration interface
 export interface ChatwootConfig {
+  chatwoot_url: string;
   chatwoot_account_id: string;
   chatwoot_token: string;
   chatwoot_sign_msg: boolean;
@@ -28,6 +29,7 @@ export interface ChatwootConfig {
 
 // Default Chatwoot configuration
 const defaultChatwootConfig: ChatwootConfig = {
+  chatwoot_url: '',
   chatwoot_account_id: '',
   chatwoot_token: '',
   chatwoot_sign_msg: true,
@@ -63,16 +65,21 @@ export const InstanceManager: React.FC = () => {
   const [chatwootConfig, setChatwootConfig] = useState<ChatwootConfig>(defaultChatwootConfig);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [createdInstanceName, setCreatedInstanceName] = useState('');
   const { data: identity } = useGetIdentity<{ $id: string }>();
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { modal } = App.useApp();
 
+  // URL del video tutorial de Terabox
+  const tutorialVideoUrl = 'https://1024terabox.com/s/1VUh-YAqf9BylaPcYbE5QNA';
+
   const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
   const collectionId = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
   const serverUrl = import.meta.env.VITE_SERVER_URL;
   const apiKey = import.meta.env.VITE_API_KEY;
-  const chatwootUrl = import.meta.env.VITE_CHATWOOT_URL || '';
+  const defaultChatwootUrl = import.meta.env.VITE_CHATWOOT_URL || '';
   const botacoWebhookUrl = import.meta.env.VITE_BOTACO_WEBHOOK_URL || 'http://n8n:5678/webhook/botaco';
   
   const databases = React.useMemo(() => new Databases(appwriteClient), []);
@@ -209,6 +216,9 @@ export const InstanceManager: React.FC = () => {
     try {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
+      // Usar URL de Chatwoot del formulario, o la por defecto si no se especificó
+      const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
+
       console.log('🚀 Creating instance with Chatwoot config:', {
         instanceName: fullInstanceName,
         chatwootAccountId: chatwootConfig.chatwoot_account_id || 'Not configured',
@@ -307,6 +317,7 @@ export const InstanceManager: React.FC = () => {
           api_key: apiKey,
           created_at: new Date().toISOString(),
           // Chatwoot fields - GUARDAR TODOS
+          chatwoot_url: chatwootConfig.chatwoot_url || chatwootUrl || null,
           chatwoot_account_id: chatwootConfig.chatwoot_account_id || null,
           chatwoot_token: chatwootConfig.chatwoot_token || null,
           chatwoot_sign_msg: chatwootConfig.chatwoot_sign_msg,
@@ -324,17 +335,25 @@ export const InstanceManager: React.FC = () => {
 
       console.log('✅ Documento guardado en Appwrite:', appwriteDoc.$id);
 
-      if (hasChatwootConfig) {
-        notify.success({
-          message: '¡Instancia creada!',
-          description: `${fullInstanceName} con integración Chatwoot activada`,
-        });
-      } else {
-        notify.instanceCreated(fullInstanceName);
-      }
+      // Notificar respuesta de Evolution API
+      const evolutionInfo = evolutionData?.instance || evolutionData;
+      notify.success({
+        message: '¡Instancia creada exitosamente!',
+        description: (
+          <div>
+            <p><strong>{fullInstanceName}</strong></p>
+            {hasChatwootConfig && <p>✅ Integración Chatwoot activada</p>}
+            {evolutionInfo?.status && <p>Estado: {evolutionInfo.status}</p>}
+            {evolutionInfo?.instanceId && <p>ID: {evolutionInfo.instanceId}</p>}
+          </div>
+        ),
+        duration: 6,
+      });
 
+      // Mostrar modal con video tutorial
+      setCreatedInstanceName(fullInstanceName);
       handleCloseModal();
-      navigate(`/whatsapp/scan/${fullInstanceName}`);
+      setShowVideoModal(true);
     } catch (error) {
       console.error('Error creating instance:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -457,6 +476,27 @@ export const InstanceManager: React.FC = () => {
           Configura la integración con Chatwoot (opcional). Si no deseas integrar Chatwoot, puedes omitir estos campos.
         </Text>
       </div>
+
+      <Form.Item 
+        label={
+          <span>
+            <LinkOutlined style={{ marginRight: 6, color: '#34B7F1' }} />
+            URL de Chatwoot
+          </span>
+        }
+      >
+        <Input
+          placeholder={defaultChatwootUrl || "https://tu-chatwoot.com"}
+          value={chatwootConfig.chatwoot_url}
+          onChange={(e) => updateChatwootConfig('chatwoot_url', e.target.value)}
+          addonBefore="https://"
+        />
+        {defaultChatwootUrl && !chatwootConfig.chatwoot_url && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Por defecto: {defaultChatwootUrl}
+          </Text>
+        )}
+      </Form.Item>
 
       <Row gutter={16}>
         <Col span={12}>
@@ -627,6 +667,13 @@ export const InstanceManager: React.FC = () => {
           style={{ marginBottom: 16, borderRadius: 12 }}
         >
           <Row gutter={[8, 12]}>
+            <Col span={12}><Text type="secondary">URL:</Text></Col>
+            <Col span={12}>
+              <Text strong style={{ wordBreak: 'break-all' }}>
+                {chatwootConfig.chatwoot_url || defaultChatwootUrl || 'No configurada'}
+              </Text>
+            </Col>
+            
             <Col span={12}><Text type="secondary">Account ID:</Text></Col>
             <Col span={12}><Text strong>{chatwootConfig.chatwoot_account_id}</Text></Col>
             
@@ -892,6 +939,91 @@ export const InstanceManager: React.FC = () => {
         />
         <div style={{ minHeight: 280 }}>
           {steps[currentStep].content}
+        </div>
+      </Modal>
+
+      {/* Modal de Video Tutorial */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <WhatsAppOutlined style={{ fontSize: 20, color: '#fff' }} />
+            </div>
+            <div>
+              <Title level={5} style={{ margin: 0 }}>¡Instancia creada!</Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>Mira el video para los siguientes pasos</Text>
+            </div>
+          </div>
+        }
+        open={showVideoModal}
+        onCancel={() => {
+          setShowVideoModal(false);
+          navigate(`/whatsapp/scan/${createdInstanceName}`);
+        }}
+        width={800}
+        centered
+        styles={{
+          content: { borderRadius: 16 },
+          body: { padding: '24px' }
+        }}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button 
+              onClick={() => window.open(tutorialVideoUrl, '_blank')}
+              icon={<LinkOutlined />}
+            >
+              Abrir en nueva pestaña
+            </Button>
+            <Button 
+              type="primary" 
+              size="large"
+              icon={<WhatsAppOutlined />}
+              onClick={() => {
+                setShowVideoModal(false);
+                navigate(`/whatsapp/scan/${createdInstanceName}`);
+              }}
+            >
+              Continuar a escanear QR
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ 
+          background: '#000', 
+          borderRadius: 12, 
+          overflow: 'hidden',
+          marginBottom: 16
+        }}>
+          <iframe
+            src={tutorialVideoUrl}
+            width="100%"
+            height="400"
+            style={{ border: 'none' }}
+            allow="autoplay; fullscreen"
+            title="Tutorial - Siguientes pasos"
+          />
+        </div>
+        <div style={{ 
+          padding: 16, 
+          background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08) 0%, rgba(37, 211, 102, 0.15) 100%)',
+          borderRadius: 12, 
+          border: '1px solid rgba(37, 211, 102, 0.3)',
+        }}>
+          <Title level={5} style={{ margin: '0 0 8px 0', color: '#128C7E' }}>
+            📱 Próximo paso: Escanear código QR
+          </Title>
+          <Text>
+            Después de ver el video, haz clic en "Continuar" para escanear el código QR con tu WhatsApp 
+            y activar la instancia <strong>{createdInstanceName}</strong>.
+          </Text>
         </div>
       </Modal>
     </div>

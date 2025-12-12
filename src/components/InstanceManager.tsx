@@ -72,8 +72,9 @@ export const InstanceManager: React.FC = () => {
   const navigate = useNavigate();
   const { modal } = App.useApp();
 
-  // URL del video tutorial de Terabox
-  const tutorialVideoUrl = 'https://1024terabox.com/s/1VUh-YAqf9BylaPcYbE5QNA';
+  // URL del video tutorial de Loom
+  const tutorialVideoUrl = 'https://www.loom.com/share/87af31c301dd4245bbf136b4846c4254';
+  const tutorialVideoEmbedUrl = 'https://www.loom.com/embed/87af31c301dd4245bbf136b4846c4254';
 
   const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
   const collectionId = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
@@ -255,6 +256,7 @@ export const InstanceManager: React.FC = () => {
         evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
         evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
         evolutionBody.chatwootUrl = cleanChatwootUrl;
+        evolutionBody.chatwootAutoCreate = true;
         evolutionBody.chatwootSignMsg = chatwootConfig.chatwoot_sign_msg;
         evolutionBody.chatwootReopenConversation = chatwootConfig.chatwoot_reopen_conversation;
         evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending;
@@ -1003,10 +1005,12 @@ export const InstanceManager: React.FC = () => {
           marginBottom: 16
         }}>
           <iframe
-            src={tutorialVideoUrl}
+            src={tutorialVideoEmbedUrl}
             width="100%"
             height="400"
             style={{ border: 'none' }}
+            frameBorder="0"
+            allowFullScreen
             allow="autoplay; fullscreen"
             title="Tutorial - Siguientes pasos"
           />

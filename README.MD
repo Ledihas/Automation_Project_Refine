@@ -12,7 +12,17 @@ Panel de administración para gestionar instancias de WhatsApp conectadas al asi
 | UI Components | Ant Design 5 + Material UI Icons |
 | Backend/BaaS | Appwrite (auth + database) |
 | API WhatsApp | EvolutionAPI |
+| CRM | Chatwoot (opcional) |
 | Despliegue | Docker (multi-stage build) |
+
+## Características
+
+- 🎨 Tema WhatsApp personalizado (verde #25D366)
+- 🌙 Modo oscuro/claro
+- 📱 Diseño responsive
+- 🔔 Sistema de notificaciones mejorado
+- 🔐 Autenticación completa con Appwrite
+- 💬 Integración con Chatwoot (opcional)
 
 ## Funcionalidades
 
@@ -24,21 +34,33 @@ Panel de administración para gestionar instancias de WhatsApp conectadas al asi
 - Protección de rutas (redirect a login si no autenticado)
 
 ### Gestión de Instancias WhatsApp
-- **Crear instancia**: Genera nombre único con sufijo aleatorio de 4 dígitos
-- **Listar instancias**: Muestra todas las instancias del usuario con su estado
+- **Crear instancia**: Wizard de 3 pasos (Nombre → Chatwoot → Confirmar)
+- **Listar instancias**: Cards con estado visual y badges
 - **Eliminar instancia**: Elimina de EvolutionAPI y Appwrite sincronizadamente
 - **Estados**: `pending` (esperando conexión) / `connected` (activo)
+- **Reconectar**: Botón para volver a escanear QR en instancias pendientes
+
+### Integración Chatwoot
+Al crear una instancia, puedes configurar opcionalmente la integración con Chatwoot:
+- Account ID y Token de API
+- Nombre personalizado del Inbox
+- Firma de mensajes automática
+- Reapertura de conversaciones
+- Importación de contactos y mensajes históricos
+- Unificación de contactos de Brasil
 
 ### Conexión vía QR
-- Página dedicada para escanear código QR
+- Página dedicada con diseño WhatsApp
+- Instrucciones paso a paso
 - Actualización automática del QR cada 5 segundos
-- Verificación de estado de conexión en tiempo real
-- Pantalla de éxito al completar la conexión
+- Indicadores de estado visuales
+- Pantalla de éxito animada al conectar
 
-### Integración con Webhooks
-- Configuración automática de webhook al crear instancia
-- Recibe eventos `MESSAGES_UPSERT` para procesar mensajes entrantes
-- Compatible con n8n y otros procesadores de webhooks
+### Sistema de Notificaciones
+- Notificaciones estilizadas con bordes de color
+- Tipos: success, error, warning, info, loading
+- Notificaciones especiales para crear/eliminar instancias
+- Mensajes de error detallados para debugging
 
 ## Estructura del Proyecto
 
@@ -49,25 +71,26 @@ src/
 ├── index.tsx                  # Punto de entrada
 │
 ├── pages/
-│   ├── Dashboard.tsx          # Panel principal con gestor de instancias
+│   ├── Dashboard.tsx          # Panel principal con header estilizado
 │   └── whatsapp/
-│       └── scanIstance.tsx    # Página de escaneo QR
+│       └── scanIstance.tsx    # Página de escaneo QR mejorada
 │
 ├── components/
 │   ├── index.ts               # Exports centralizados
-│   ├── InstanceManager.tsx    # CRUD completo de instancias
-│   ├── ConnectionSuccess.tsx  # Pantalla post-conexión exitosa
+│   ├── InstanceManager.tsx    # CRUD con wizard de 3 pasos
+│   ├── ConnectionSuccess.tsx  # Pantalla post-conexión con animaciones
 │   └── header/
-│       └── index.tsx          # Header con toggle dark/light mode
+│       └── index.tsx          # Header con menú de usuario y tema
 │
 ├── contexts/
 │   └── color-mode/
-│       └── index.tsx          # Context para tema claro/oscuro
+│       └── index.tsx          # Tema WhatsApp (claro/oscuro)
 │
 └── utility/
     ├── index.ts               # Exports centralizados
     ├── appwriteClient.ts      # Cliente Appwrite configurado
     ├── instanceUtils.ts       # Validación y generación de nombres
+    ├── notifications.tsx      # Sistema de notificaciones personalizado
     └── normalize.ts           # Utilidades de normalización
 ```
 
@@ -92,8 +115,9 @@ VITE_API_KEY=tu_api_key
 VITE_BOTACO_WEBHOOK_URL=http://n8n:5678/webhook/botaco
 
 # Chatwoot (opcional)
-VITE_CHATWOOT_URL=https://your-chatwoot-instance.com
+VITE_CHATWOOT_URL=https://tu-chatwoot.com
 ```
+
 
 ### Requisitos en Appwrite
 
@@ -151,6 +175,7 @@ docker build -t automation-project \
   --build-arg VITE_APPWRITE_WHATSAPP_COLLECTION_ID=... \
   --build-arg VITE_SERVER_URL=... \
   --build-arg VITE_API_KEY=... \
+  --build-arg VITE_CHATWOOT_URL=... \
   .
 
 # Ejecutar contenedor
@@ -165,40 +190,86 @@ docker run -p 3000:3000 automation-project
 | `npm run build` | Build de producción |
 | `npm run start` | Servidor de producción |
 
-## Flujo de Usuario
+## Flujo de Creación de Instancia
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Login/    │────▶│  Dashboard  │────▶│   Crear     │
-│  Registro   │     │             │     │  Instancia  │
-└─────────────┘     └─────────────┘     └──────┬──────┘
-                                               │
-                                               ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Asistente  │◀────│  Conexión   │◀────│  Escanear   │
-│    Activo   │     │   Exitosa   │     │     QR      │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Paso 1:       │────▶│   Paso 2:       │────▶│   Paso 3:       │
+│   Nombre        │     │   Chatwoot      │     │   Confirmar     │
+│   instancia     │     │   (opcional)    │     │   y crear       │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Asistente     │◀────│   Conexión      │◀────│   Escanear      │
+│   Activo        │     │   Exitosa       │     │   QR            │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
-
-1. Usuario se registra o inicia sesión
-2. Accede al dashboard con sus instancias
-3. Crea nueva instancia de WhatsApp
-4. Escanea el código QR con su teléfono
-5. Al conectar, el asistente ACO comienza a responder automáticamente
 
 ## Arquitectura de Integración
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│    React     │─────▶│  Appwrite    │      │     n8n      │
-│    Panel     │      │  (Auth/DB)   │      │  (Webhooks)  │
+│    React     │─────▶│  Appwrite    │      │   Chatwoot   │
+│    Panel     │      │  (Auth/DB)   │      │   (CRM)      │
 └──────┬───────┘      └──────────────┘      └──────▲───────┘
        │                                          │
        │              ┌──────────────┐            │
        └─────────────▶│ EvolutionAPI │────────────┘
                       │  (WhatsApp)  │
+                      └──────┬───────┘
+                             │
+                      ┌──────▼───────┐
+                      │     n8n      │
+                      │  (Webhooks)  │
                       └──────────────┘
 ```
+
+## Payload de EvolutionAPI con Chatwoot
+
+Cuando se crea una instancia con Chatwoot configurado, se envía el siguiente payload:
+
+```json
+{
+  "instanceName": "MiTienda_1234",
+  "integration": "WHATSAPP-BAILEYS",
+  "qrcode": true,
+  "alwaysOnline": true,
+  "groupsIgnore": true,
+  "webhook": {
+    "url": "http://n8n:5678/webhook/botaco",
+    "byEvents": false,
+    "base64": true,
+    "events": ["MESSAGES_UPSERT"]
+  },
+  "chatwootAccountId": "1",
+  "chatwootToken": "tu_token_aqui",
+  "chatwootUrl": "https://tu-chatwoot.com",
+  "chatwootSignMsg": true,
+  "chatwootReopenConversation": true,
+  "chatwootConversationPending": false,
+  "chatwootNameInbox": "MiTienda_1234",
+  "chatwootMergeBrazilContacts": true,
+  "chatwootImportContacts": true,
+  "chatwootImportMessages": true,
+  "chatwootDaysLimitImportMessages": 3,
+  "chatwootOrganization": "ACO Assistant",
+  "chatwootLogo": "https://evolution-api.com/files/evolution-api-favicon.png"
+}
+```
+
+## Tema WhatsApp
+
+El proyecto incluye un tema personalizado inspirado en WhatsApp:
+
+| Color | Hex | Uso |
+|-------|-----|-----|
+| Primary | #25D366 | Botones, badges, acentos |
+| Primary Hover | #128C7E | Estados hover |
+| Primary Active | #075E54 | Estados activos |
+| Secondary | #34B7F1 | Chatwoot badges, info |
+| Background Dark | #0B141A | Fondo modo oscuro |
+| Sider Dark | #111B21 | Sidebar modo oscuro |
 
 ## Despliegue con Nginx
 

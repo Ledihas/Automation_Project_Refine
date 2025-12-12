@@ -209,16 +209,18 @@ export const InstanceManager: React.FC = () => {
     try {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
-      console.log('Creating instance with Chatwoot config:', {
+      console.log('🚀 Creating instance with Chatwoot config:', {
         instanceName: fullInstanceName,
         chatwootAccountId: chatwootConfig.chatwoot_account_id || 'Not configured',
+        chatwootToken: chatwootConfig.chatwoot_token ? '✅ PRESENTE' : '❌ AUSENTE',
+        chatwootUrl: chatwootUrl || '❌ NO CONFIGURADA',
       });
 
       // Build Evolution API request body
       const evolutionBody: any = {
         instanceName: fullInstanceName,
         integration: 'WHATSAPP-BAILEYS',
-        qrcode: false,
+        qrcode: true,
         alwaysOnline: true,
         groupsIgnore: true,
         webhook: {
@@ -229,25 +231,41 @@ export const InstanceManager: React.FC = () => {
         }
       };
 
-      // Add Chatwoot config if account_id and token are provided
-      if (chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token) {
-        evolutionBody.chatwoot = {
-          enabled: true,
-          accountId: chatwootConfig.chatwoot_account_id,
-          token: chatwootConfig.chatwoot_token,
-          url: chatwootUrl,
-          signMsg: chatwootConfig.chatwoot_sign_msg,
-          reopenConversation: chatwootConfig.chatwoot_reopen_conversation,
-          conversationPending: chatwootConfig.chatwoot_conversation_pending,
-          nameInbox: chatwootConfig.chatwoot_name_inbox || fullInstanceName,
-          mergeBrazilContacts: chatwootConfig.chatwoot_merge_brazil_contacts,
-          importContacts: chatwootConfig.chatwoot_import_contacts,
-          importMessages: chatwootConfig.chatwoot_import_messages,
-          daysLimitImportMessages: chatwootConfig.chatwoot_days_limit_import,
-          organization: chatwootConfig.chatwoot_organization,
-          logo: chatwootConfig.chatwoot_logo || '',
-        };
+      // ============================================
+      // CRÍTICO: Agregar parámetros de Chatwoot
+      // ============================================
+      const hasChatwootConfig = chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token;
+      
+      if (hasChatwootConfig) {
+        console.log('✅ Agregando configuración Chatwoot al payload');
+        
+        // Asegurar que la URL no tenga / al final
+        const cleanChatwootUrl = chatwootUrl.replace(/\/$/, '');
+        
+        evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
+        evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
+        evolutionBody.chatwootUrl = cleanChatwootUrl;
+        evolutionBody.chatwootSignMsg = chatwootConfig.chatwoot_sign_msg;
+        evolutionBody.chatwootReopenConversation = chatwootConfig.chatwoot_reopen_conversation;
+        evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending;
+        evolutionBody.chatwootNameInbox = chatwootConfig.chatwoot_name_inbox || fullInstanceName;
+        evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts;
+        evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts;
+        evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages;
+        evolutionBody.chatwootDaysLimitImportMessages = chatwootConfig.chatwoot_days_limit_import;
+        evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization;
+        evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
+        
+        console.log('📤 Payload CON Chatwoot completo');
+      } else {
+        console.log('⚠️ Creando instancia SIN Chatwoot (falta accountId o token)');
       }
+
+      // Log full payload for debugging (ocultar token)
+      console.log('📤 PAYLOAD COMPLETO a EvolutionAPI:', JSON.stringify({
+        ...evolutionBody,
+        chatwootToken: evolutionBody.chatwootToken ? '[OCULTO]' : undefined
+      }, null, 2));
 
       const evolutionResponse = await fetch(`${serverUrl}/instance/create`, {
         method: 'POST',
@@ -259,25 +277,26 @@ export const InstanceManager: React.FC = () => {
       });
 
       const responseText = await evolutionResponse.text();
-      console.log('Evolution API response:', {
-        status: evolutionResponse.status,
-        ok: evolutionResponse.ok,
-        bodyPreview: responseText.substring(0, 200)
-      });
+      console.log('📥 Evolution API response status:', evolutionResponse.status);
+      console.log('📥 Evolution API response body:', responseText.substring(0, 500));
 
       if (!evolutionResponse.ok) {
         throw new Error(`Evolution API error (${evolutionResponse.status}): ${responseText || 'Sin respuesta'}`);
       }
 
       // Parse response
+      let evolutionData;
       try {
-        JSON.parse(responseText);
+        evolutionData = JSON.parse(responseText);
+        console.log('✅ Instancia creada en EvolutionAPI:', evolutionData);
       } catch (e) {
         throw new Error(`Respuesta inválida de Evolution API: ${responseText.substring(0, 100)}`);
       }
 
-      // Save instance to Appwrite with Chatwoot config
-      await databases.createDocument(
+      // ============================================
+      // GUARDAR EN APPWRITE CON TODA LA CONFIG
+      // ============================================
+      const appwriteDoc = await databases.createDocument(
         databaseId,
         collectionId,
         'unique()',
@@ -287,7 +306,7 @@ export const InstanceManager: React.FC = () => {
           status: 'pending',
           api_key: apiKey,
           created_at: new Date().toISOString(),
-          // Chatwoot fields
+          // Chatwoot fields - GUARDAR TODOS
           chatwoot_account_id: chatwootConfig.chatwoot_account_id || null,
           chatwoot_token: chatwootConfig.chatwoot_token || null,
           chatwoot_sign_msg: chatwootConfig.chatwoot_sign_msg,
@@ -303,7 +322,16 @@ export const InstanceManager: React.FC = () => {
         }
       );
 
-      notify.instanceCreated(fullInstanceName);
+      console.log('✅ Documento guardado en Appwrite:', appwriteDoc.$id);
+
+      if (hasChatwootConfig) {
+        notify.success({
+          message: '¡Instancia creada!',
+          description: `${fullInstanceName} con integración Chatwoot activada`,
+        });
+      } else {
+        notify.instanceCreated(fullInstanceName);
+      }
 
       handleCloseModal();
       navigate(`/whatsapp/scan/${fullInstanceName}`);

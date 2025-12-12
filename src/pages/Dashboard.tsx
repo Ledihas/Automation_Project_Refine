@@ -12,42 +12,42 @@ export const Dashboard: React.FC = () => {
       minHeight: '100vh',
     }}>
       {/* Welcome Header Section */}
-      <Space 
-        direction="vertical" 
-        size="small" 
-        style={{ 
-          marginBottom: '32px',
-          width: '100%'
-        }}
-      >
+      <div style={{ 
+        marginBottom: 32,
+        padding: '24px 28px',
+        background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08) 0%, rgba(18, 140, 126, 0.12) 100%)',
+        borderRadius: 16,
+        border: '1px solid rgba(37, 211, 102, 0.15)'
+      }}>
         <Space align="center" size="middle">
-          <WhatsAppOutlined 
-            style={{ 
-              fontSize: '32px', 
-              color: '#25D366' 
-            }} 
-          />
-          <Title 
-            level={2} 
-            style={{ 
-              margin: 0,
-              fontSize: 'clamp(20px, 4vw, 28px)'
-            }}
-          >
-            Gestiona tus Asistentes de WhatsApp
-          </Title>
+          <div style={{
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+          }}>
+            <WhatsAppOutlined style={{ fontSize: 26, color: '#fff' }} />
+          </div>
+          <div>
+            <Title 
+              level={3} 
+              style={{ 
+                margin: 0,
+                fontSize: 'clamp(18px, 4vw, 24px)'
+              }}
+            >
+              Gestiona tus Asistentes de WhatsApp
+            </Title>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              Crea y administra tus conexiones con el Asistente de IA de ACO
+            </Text>
+          </div>
         </Space>
-        <Text 
-          type="secondary" 
-          style={{ 
-            fontSize: '14px',
-            display: 'block',
-            marginLeft: '44px'
-          }}
-        >
-          Crea y administra tus conexiones con el Asistente de IA de ACO
-        </Text>
-      </Space>
+      </div>
 
       {/* Instance Manager Component */}
       <InstanceManager />

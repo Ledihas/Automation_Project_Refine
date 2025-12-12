@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Card, Typography, Button, Spin, Steps } from "antd";
+import { WhatsAppOutlined, ArrowLeftOutlined, LoadingOutlined, CheckCircleOutlined, MobileOutlined, ScanOutlined } from "@ant-design/icons";
 import QRCode from "qrcode";
 import { ConnectionSuccess } from "../../components/ConnectionSuccess";
 import { Databases } from "@refinedev/appwrite";
 import { appwriteClient } from "../../utility/appwriteClient";
+import { notify } from "../../utility/notifications";
+
+const { Title, Text } = Typography;
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 const SERVER_URL = import.meta.env.VITE_SERVER_URL;
@@ -15,7 +20,7 @@ export const ScanInstance: React.FC = () => {
   const navigate = useNavigate();
 
   const [qrData, setQrData] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("Esperando QR...");
+  const [status, setStatus] = useState<string>("loading");
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -23,95 +28,72 @@ export const ScanInstance: React.FC = () => {
   useEffect(() => {
     if (!instanceName) return;
     startQrRefresh(instanceName);
-
     return () => stopQrRefresh();
   }, [instanceName]);
 
-  // Handle connection success
   useEffect(() => {
     if (isConnected && !showSuccessMessage) {
-      // Update instance status in Appwrite
       updateInstanceStatus(instanceName!);
-      
-      // Show success message after 2-second delay
-      setTimeout(() => {
-        setShowSuccessMessage(true);
-      }, 2000);
+      notify.connectionSuccess(instanceName!);
+      setTimeout(() => setShowSuccessMessage(true), 2000);
     }
   }, [isConnected, showSuccessMessage, instanceName]);
 
-  // Update instance status in Appwrite
   const updateInstanceStatus = async (name: string) => {
     try {
       const databases = new Databases(appwriteClient);
-      
-      // Find the instance document by instance_name
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTION_ID,
-        [`equal("instance_name", "${name}")`]
-      );
-
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
+        `equal("instance_name", "${name}")`
+      ]);
       if (response.documents.length > 0) {
-        const instanceDoc = response.documents[0];
-        
-        // Update status to "connected"
-        await databases.updateDocument(
-          DATABASE_ID,
-          COLLECTION_ID,
-          instanceDoc.$id,
-          { status: "connected" }
-        );
+        await databases.updateDocument(DATABASE_ID, COLLECTION_ID, response.documents[0].$id, { 
+          status: "connected" 
+        });
       }
     } catch (err) {
       console.error("Error updating instance status:", err);
     }
   };
 
-  // Fetch QR code from EvolutionAPI
+
   const fetchQr = async (name: string) => {
     try {
       const res = await fetch(`${SERVER_URL}/instance/connect/${name}`, {
         method: "GET",
         headers: { apikey: API_KEY },
       });
-
       const data = await res.json();
-
       if (data?.code) {
-        const qrImage = await QRCode.toDataURL(data.code);
+        const qrImage = await QRCode.toDataURL(data.code, {
+          width: 280,
+          margin: 2,
+          color: { dark: '#075E54', light: '#FFFFFF' }
+        });
         setQrData(qrImage);
-        setStatus("Escanea el QR o ingresa el código de emparejamiento.");
+        setStatus("ready");
       } else {
-        setStatus("Esperando nuevo QR...");
+        setStatus("waiting");
       }
     } catch (err) {
       console.error("Error obteniendo QR:", err);
-      setStatus("Error al obtener QR");
+      setStatus("error");
     }
   };
 
-  // Check instance connection status
   const checkStatus = async (name: string) => {
     try {
       const res = await fetch(`${SERVER_URL}/instance/connectionState/${name}`, {
         headers: { apikey: API_KEY },
       });
-
       const text = await res.text();
       let data;
-
       try {
         data = JSON.parse(text);
       } catch {
-        console.warn("Respuesta inesperada:", text);
         return;
       }
-
       if (data?.instance?.state) {
         const state = data.instance.state;
-        setStatus(state);
-
         if (["open", "connected", "authenticated"].includes(state)) {
           stopQrRefresh();
           setIsConnected(true);
@@ -122,7 +104,6 @@ export const ScanInstance: React.FC = () => {
     }
   };
 
-  // Start QR refresh interval
   const startQrRefresh = (name: string) => {
     stopQrRefresh();
     fetchQr(name);
@@ -132,70 +113,157 @@ export const ScanInstance: React.FC = () => {
     }, 5000);
   };
 
-  // Stop QR refresh interval
   const stopQrRefresh = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
-  // Handle continue to dashboard
-  const handleContinue = () => {
-    navigate("/");
-  };
-
-  // Show success message if connected
   if (showSuccessMessage && instanceName) {
-    return (
-      <ConnectionSuccess 
-        instanceName={instanceName} 
-        onContinue={handleContinue} 
-      />
-    );
+    return <ConnectionSuccess instanceName={instanceName} onContinue={() => navigate("/")} />;
   }
 
+  const getStatusInfo = () => {
+    switch (status) {
+      case "loading":
+        return { text: "Generando código QR...", color: "#8696A0" };
+      case "ready":
+        return { text: "Escanea con tu WhatsApp", color: "#25D366" };
+      case "waiting":
+        return { text: "Esperando nuevo código...", color: "#faad14" };
+      case "error":
+        return { text: "Error al obtener QR", color: "#ff4d4f" };
+      default:
+        return { text: status, color: "#8696A0" };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+
+
   return (
-    <div
-      style={{
-        maxWidth: "450px",
-        margin: "40px auto",
-        padding: "20px",
-        backgroundColor: "#110a0aff",
-        color: "white",
-        borderRadius: "12px",
-        textAlign: "center",
-        boxShadow: "0px 4px 10px rgba(0,0,0,0.3)",
-      }}
-    >
-      <h2 style={{ marginBottom: "10px" }}>Escanea el QR de {instanceName}</h2>
-
-      {/* Imagen del QR */}
-      {qrData ? (
-        <img
-          src={qrData}
-          alt="QR"
-          width={280}
-          style={{ margin: "20px 0", borderRadius: "8px" }}
-        />
-      ) : (
-        <p>Cargando QR...</p>
-      )}
-
-      {/* Estado de la instancia */}
-      <p style={{ marginBottom: "20px" }}>Estado: {status}</p>
-
-      {/* Botón volver */}
-      <button
-        onClick={() => navigate(-1)}
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: 'calc(100vh - 150px)',
+      padding: '24px'
+    }}>
+      <Card
         style={{
-          padding: "10px 18px",
-          backgroundColor: "rgba(2, 44, 15, 0.67)",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-          borderRadius: "8px",
+          maxWidth: 480,
+          width: '100%',
+          borderRadius: 20,
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
         }}
+        styles={{ body: { padding: 0 } }}
       >
-        Volver atrás
-      </button>
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+          padding: '24px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 12px'
+          }}>
+            <WhatsAppOutlined style={{ fontSize: 28, color: '#fff' }} />
+          </div>
+          <Title level={4} style={{ color: '#fff', margin: 0 }}>
+            Conectar WhatsApp
+          </Title>
+          <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
+            {instanceName}
+          </Text>
+        </div>
+
+        {/* QR Section */}
+        <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+          {/* QR Code */}
+          <div style={{
+            width: 280,
+            height: 280,
+            margin: '0 auto 24px',
+            borderRadius: 16,
+            overflow: 'hidden',
+            backgroundColor: '#f5f5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid rgba(37, 211, 102, 0.2)'
+          }}>
+            {qrData ? (
+              <img src={qrData} alt="QR Code" style={{ width: '100%', height: '100%' }} />
+            ) : (
+              <Spin indicator={<LoadingOutlined style={{ fontSize: 40, color: '#25D366' }} spin />} />
+            )}
+          </div>
+
+          {/* Status */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '8px 16px',
+            backgroundColor: `${statusInfo.color}15`,
+            borderRadius: 20,
+            marginBottom: 24
+          }}>
+            {status === 'loading' || status === 'waiting' ? (
+              <LoadingOutlined style={{ color: statusInfo.color, marginRight: 8 }} spin />
+            ) : status === 'ready' ? (
+              <CheckCircleOutlined style={{ color: statusInfo.color, marginRight: 8 }} />
+            ) : null}
+            <Text style={{ color: statusInfo.color, fontWeight: 500 }}>{statusInfo.text}</Text>
+          </div>
+
+          {/* Instructions */}
+          <Steps
+            direction="vertical"
+            size="small"
+            current={-1}
+            style={{ textAlign: 'left', maxWidth: 320, margin: '0 auto' }}
+            items={[
+              {
+                title: <Text strong>Abre WhatsApp</Text>,
+                description: <Text type="secondary" style={{ fontSize: 12 }}>En tu teléfono móvil</Text>,
+                icon: <MobileOutlined style={{ color: '#25D366' }} />
+              },
+              {
+                title: <Text strong>Ve a Dispositivos vinculados</Text>,
+                description: <Text type="secondary" style={{ fontSize: 12 }}>Menú → Dispositivos vinculados</Text>,
+                icon: <WhatsAppOutlined style={{ color: '#25D366' }} />
+              },
+              {
+                title: <Text strong>Escanea el código QR</Text>,
+                description: <Text type="secondary" style={{ fontSize: 12 }}>Apunta la cámara al código</Text>,
+                icon: <ScanOutlined style={{ color: '#25D366' }} />
+              }
+            ]}
+          />
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '16px 24px',
+          borderTop: '1px solid rgba(0,0,0,0.06)',
+          textAlign: 'center'
+        }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate("/")}
+            style={{ color: '#8696A0' }}
+          >
+            Volver al panel
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };

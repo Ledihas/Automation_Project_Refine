@@ -56,7 +56,7 @@ export const AssistantConfig: React.FC = () => {
   const [savedConfig, setSavedConfig] = useState<ConfigData>(defaultConfig);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const webhookUrl = import.meta.env.VITE_CONFIG_WEBHOOK_URL || 'http://n8m.agentedecargaonline.com/webhook/configBot';
+  const webhookUrl = import.meta.env.VITE_CONFIG_WEBHOOK_URL || 'https://n8m.agentedecargaonline.com/webhook/configBot';
 
   // Cargar configuración actual
   const loadConfig = useCallback(async () => {

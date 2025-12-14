@@ -212,7 +212,6 @@ export const AssistantConfig: React.FC = () => {
           rows={8}
           placeholder="Ej: Eres ACO, un asistente virtual inteligente..."
           showCount
-          maxLength={5000}
         />
       </Form.Item>
 
@@ -234,7 +233,6 @@ export const AssistantConfig: React.FC = () => {
           rows={5}
           placeholder="Ej: Eres un agente especializado que asiste al agente principal..."
           showCount
-          maxLength={3000}
         />
       </Form.Item>
     </div>
@@ -265,7 +263,7 @@ export const AssistantConfig: React.FC = () => {
               <Space>
                 <span>API Key de WhatsApp</span>
                 <Tag color="green">Seguro</Tag>
-                <Tooltip title="Clave de API para la integración con WhatsApp Business">
+                <Tooltip title="Clave de API para la integración con Whapi">
                   <InfoCircleOutlined style={{ color: '#8696A0' }} />
                 </Tooltip>
               </Space>

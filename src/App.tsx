@@ -52,7 +52,7 @@ function App() {
                   syncWithLocation: true,
                   warnWhenUnsavedChanges: true,
                   projectId: "rXYWZJ-vUSi4m-2cDzxu",
-                  title:{text:"Automation Site"},
+                  title:{text:"Bot de ACO"},
                 }}
               >
                 <Routes>

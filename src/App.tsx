@@ -1,9 +1,9 @@
 import { Authenticated, Refine } from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
-import { ScanInstance } from "./pages/whatsapp/scanIstance";
 import { Dashboard } from "./pages/Dashboard";
 import { AssistantConfigPage } from "./pages/AssistantConfigPage";
+import { WhapiConfigPage } from "./pages/WhapiConfigPage";
 
 import {
   AuthPage,
@@ -27,12 +27,10 @@ import { ColorModeContextProvider } from "./contexts/color-mode";
 import { appwriteClient } from "./utility";
 
 function App() {
-  // Detectar si estamos en producción con Nginx
   const basename = import.meta.env.VITE_USE_BASE_PATH === 'true' ? '/whatsapp' : '';
-  
+
   return (
     <BrowserRouter basename={basename}>
-      
       <RefineKbarProvider>
         <ColorModeContextProvider>
           <AntdApp>
@@ -52,7 +50,7 @@ function App() {
                   syncWithLocation: true,
                   warnWhenUnsavedChanges: true,
                   projectId: "rXYWZJ-vUSi4m-2cDzxu",
-                  title:{text:"Bot de ACO"},
+                  title: { text: "Bot de ACO" },
                 }}
               >
                 <Routes>
@@ -72,8 +70,8 @@ function App() {
                     }
                   >
                     <Route index element={<Dashboard />} />
+                    <Route path="/whapi-config" element={<WhapiConfigPage />} />
                     <Route path="/assistant-config" element={<AssistantConfigPage />} />
-                    <Route path="/whatsapp/scan/:instanceName" element={<ScanInstance />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
                   <Route

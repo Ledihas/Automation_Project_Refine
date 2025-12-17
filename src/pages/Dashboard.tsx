@@ -1,8 +1,8 @@
 import React from 'react';
-import { Typography, Space, Button } from 'antd';
-import { WhatsAppOutlined, RobotOutlined } from '@ant-design/icons';
-import { InstanceManager } from '../components';
+import { Card, Row, Col, Space, Typography } from 'antd';
+import { SettingOutlined, RobotOutlined, WhatsAppOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
+import { WhapiStatus, WhapiLabels, WhapiChatList } from '../components';
 
 const { Title, Text } = Typography;
 
@@ -10,19 +10,10 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div style={{ 
-      padding: '24px',
-      minHeight: '100vh',
-    }}>
-      {/* Welcome Header Section */}
-      <div style={{ 
-        marginBottom: 32,
-        padding: '24px 28px',
-        background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08) 0%, rgba(18, 140, 126, 0.12) 100%)',
-        borderRadius: 16,
-        border: '1px solid rgba(37, 211, 102, 0.15)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+    <div style={{ padding: '24px', minHeight: '100vh' }}>
+      {/* Header */}
+      <Card style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space align="center" size="middle">
             <div style={{
               width: 52,
@@ -37,33 +28,82 @@ export const Dashboard: React.FC = () => {
               <WhatsAppOutlined style={{ fontSize: 26, color: '#fff' }} />
             </div>
             <div>
-              <Title 
-                level={3} 
-                style={{ 
-                  margin: 0,
-                  fontSize: 'clamp(18px, 4vw, 24px)'
-                }}
-              >
-                Gestiona tus Asistentes de WhatsApp
-              </Title>
-              <Text type="secondary" style={{ fontSize: 14 }}>
-                Crea y administra tus conexiones con el Asistente de IA de ACO
-              </Text>
+              <Title level={3} style={{ margin: 0 }}>Dashboard - Asistente ACO</Title>
+              <Text type="secondary">Panel de administración del asistente de IA</Text>
             </div>
           </Space>
-          <Button
-            type="default"
-            icon={<RobotOutlined />}
-            onClick={() => navigate('/assistant-config')}
-            size="large"
-          >
-            Configurar Asistente
-          </Button>
-        </div>
-      </div>
+          <WhapiStatus />
+        </Space>
+      </Card>
 
-      {/* Instance Manager Component */}
-      <InstanceManager />
+      {/* Etiquetas y Chats */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={10}>
+          <WhapiLabels />
+        </Col>
+        <Col xs={24} lg={14}>
+          <WhapiChatList />
+        </Col>
+      </Row>
+
+      {/* Accesos rápidos */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12}>
+          <Card
+            hoverable
+            onClick={() => navigate('/whapi-config')}
+            style={{ cursor: 'pointer', height: '100%' }}
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <SettingOutlined style={{ fontSize: 28, color: '#fff' }} />
+              </div>
+              <div>
+                <Title level={4} style={{ margin: 0 }}>Configurar Canal</Title>
+                <Text type="secondary">
+                  Conectar/desconectar WhatsApp
+                </Text>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12}>
+          <Card
+            hoverable
+            onClick={() => navigate('/assistant-config')}
+            style={{ cursor: 'pointer', height: '100%' }}
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <RobotOutlined style={{ fontSize: 28, color: '#fff' }} />
+              </div>
+              <div>
+                <Title level={4} style={{ margin: 0 }}>Configurar Asistente</Title>
+                <Text type="secondary">
+                  Personalizar comportamiento de IA
+                </Text>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

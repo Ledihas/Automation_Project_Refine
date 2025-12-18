@@ -6,7 +6,8 @@ import {
   ReloadOutlined,
   WhatsAppOutlined,
   QrcodeOutlined,
-  LinkOutlined
+  LinkOutlined,
+  PoweroffOutlined
 } from '@ant-design/icons';
 import { whapiClient } from '../utility';
 import { notify } from '../utility/notifications';
@@ -29,6 +30,7 @@ export const WhapiChannelConfig: React.FC = () => {
   const [loadingQR, setLoadingQR] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [configuring, setConfiguring] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -189,9 +191,16 @@ export const WhapiChannelConfig: React.FC = () => {
     setDisconnecting(true);
 
     try {
-      const result = await whapiClient.logout();
+      // Llamar al endpoint /users/logout de Whapi
+      const response = await fetch('https://gate.whapi.cloud/users/logout', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'authorization': `Bearer ${import.meta.env.VITE_WHAPI_TOKEN}`
+        }
+      });
 
-      if (result.success) {
+      if (response.ok) {
         notify.success({
           message: 'Canal desconectado',
           description: 'El canal de WhatsApp se ha desconectado correctamente'
@@ -202,9 +211,10 @@ export const WhapiChannelConfig: React.FC = () => {
         });
         setQrCode(null);
       } else {
+        const errorText = await response.text();
         notify.error({
           message: 'Error al desconectar',
-          description: result.error
+          description: errorText || `HTTP ${response.status}`
         });
       }
     } catch (error) {
@@ -214,6 +224,35 @@ export const WhapiChannelConfig: React.FC = () => {
       });
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    setRestarting(true);
+
+    try {
+      const response = await fetch('https://n8m.agentedecargaonline.com/webhook/restart', {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        notify.success({
+          message: 'Reinicio solicitado',
+          description: 'Se ha enviado la solicitud de reinicio correctamente'
+        });
+      } else {
+        notify.error({
+          message: 'Error al reiniciar',
+          description: `HTTP ${response.status}`
+        });
+      }
+    } catch (error) {
+      notify.error({
+        message: 'Error',
+        description: 'No se pudo enviar la solicitud de reinicio'
+      });
+    } finally {
+      setRestarting(false);
     }
   };
 
@@ -301,7 +340,7 @@ export const WhapiChannelConfig: React.FC = () => {
 
             <Divider />
 
-            <Space>
+            <Space wrap>
               <Button
                 icon={<LinkOutlined />}
                 onClick={configureWebhook}
@@ -314,6 +353,14 @@ export const WhapiChannelConfig: React.FC = () => {
                 onClick={checkStatus}
               >
                 Actualizar estado
+              </Button>
+              <Button
+                icon={<PoweroffOutlined />}
+                onClick={handleRestart}
+                loading={restarting}
+                style={{ backgroundColor: '#faad14', borderColor: '#faad14', color: '#fff' }}
+              >
+                Reiniciar servicio
               </Button>
               <Button
                 danger

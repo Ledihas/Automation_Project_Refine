@@ -107,7 +107,7 @@ export class WhapiClient {
         },
         body: JSON.stringify({
           media: {
-            auto_download: ['audio', 'voice', 'document']
+            auto_download: ['audio', 'voice', 'document', 'image']
           },
           webhooks: [
             {
@@ -552,6 +552,33 @@ export class WhapiClient {
       if (!response.ok) {
         const errorText = await response.text();
         return { success: false, error: errorText };
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Obtener información de un contacto (nombre y foto de perfil)
+   */
+  async getContact(
+    contactId: string
+  ): Promise<WhapiResponse<{ id: string; name?: string; profile_pic?: string; profile_pic_full?: string }>> {
+    try {
+      // Extraer solo el número del ID (quitar @s.whatsapp.net)
+      const phoneNumber = contactId.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      const response = await fetch(`${this.baseUrl}/contacts/${phoneNumber}`, {
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
       }
 
       const data = await response.json();

@@ -12,8 +12,11 @@ import {
   Drawer,
   Button,
   Input,
-  Modal
+  Modal,
+  Dropdown,
+  Tooltip
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   UserOutlined,
   MessageOutlined,
@@ -24,7 +27,9 @@ import {
   SendOutlined,
   PictureOutlined,
   FileOutlined,
-  CloseOutlined
+  CloseOutlined,
+  TagOutlined,
+  TagsOutlined
 } from '@ant-design/icons';
 import { whapiClient } from '../utility';
 import { notify } from '../utility/notifications';
@@ -60,6 +65,73 @@ interface Message {
   from: string;
   from_name?: string;
   action?: { type: string };
+  document?: {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    file_name: string;
+    filename: string;
+    link: string;
+    caption?: string;
+    page_count?: number;
+  };
+  image?: {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    link: string;
+    caption?: string;
+    width?: number;
+    height?: number;
+  };
+  video?: {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    link: string;
+    caption?: string;
+  };
+  audio?: {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    link: string;
+  };
+  voice?: {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    link: string;
+  };
+  contact?: {
+    name: string;
+    vcard: string;
+  };
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+  };
+  sticker?: {
+    id: string;
+    mime_type: string;
+    link: string;
+  };
+}
+
+interface Label {
+  id: string | number;
+  name: string;
+  color: string;
+  count?: number;
+}
+
+interface ContactInfo {
+  id: string;
+  name?: string;
+  profile_pic?: string;
+  profile_pic_full?: string;
 }
 
 export const WhapiChatList: React.FC = () => {
@@ -88,11 +160,20 @@ export const WhapiChatList: React.FC = () => {
   const [sendingDocument, setSendingDocument] = useState(false);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado para etiquetas
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [loadingLabels, setLoadingLabels] = useState(false);
+  const [assigningLabel, setAssigningLabel] = useState(false);
+
+  // Estado para información del contacto seleccionado
+  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+
   useEffect(() => {
     loadChats();
+    loadLabels();
     const interval = setInterval(() => {
       loadChats(true);
-    }, 90000);
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -129,12 +210,102 @@ export const WhapiChatList: React.FC = () => {
         setMessages(validMessages);
         // Scroll al final después de cargar
         setTimeout(() => scrollToBottom(), 100);
+
+        // Marcar mensajes recibidos como leídos
+        const unreadMessages = validMessages.filter(
+          (msg: Message) => !msg.from_me && msg.status !== 'read'
+        );
+        if (unreadMessages.length > 0) {
+          // Marcar el último mensaje como leído (esto marca toda la conversación)
+          const lastUnread = unreadMessages[unreadMessages.length - 1];
+          markMessageAsRead(lastUnread.id);
+        }
       }
     } catch (error) {
       console.error('Error loading messages:', error);
     } finally {
       setLoadingMessages(false);
     }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      const token = import.meta.env.VITE_WHAPI_TOKEN;
+      await fetch(`https://gate.whapi.cloud/messages/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'accept': 'application/json',
+          'authorization': `Bearer ${token}`
+        }
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  const loadLabels = async () => {
+    setLoadingLabels(true);
+    try {
+      const result = await whapiClient.getLabels();
+      if (result.success && result.data) {
+        setLabels(result.data.labels || result.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading labels:', error);
+    } finally {
+      setLoadingLabels(false);
+    }
+  };
+
+  const handleAssignLabel = async (contactId: string, labelId: string | number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setAssigningLabel(true);
+    try {
+      const result = await whapiClient.addContactToLabel(labelId, contactId);
+      if (result.success) {
+        notify.success({
+          message: 'Etiqueta asignada',
+          description: 'El contacto se ha etiquetado correctamente'
+        });
+      } else {
+        notify.error({
+          message: 'Error al asignar etiqueta',
+          description: result.error || 'No se pudo asignar la etiqueta'
+        });
+      }
+    } catch (error) {
+      notify.error({
+        message: 'Error',
+        description: 'No se pudo asignar la etiqueta'
+      });
+    } finally {
+      setAssigningLabel(false);
+    }
+  };
+
+  const getLabelMenuItems = (contactId: string): MenuProps['items'] => {
+    if (labels.length === 0) {
+      return [{ key: 'empty', label: 'No hay etiquetas disponibles', disabled: true }];
+    }
+    return labels.map((label) => ({
+      key: label.id.toString(),
+      label: (
+        <Space>
+          <div
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              backgroundColor: label.color || '#ccc'
+            }}
+          />
+          {label.name}
+        </Space>
+      ),
+      onClick: () => handleAssignLabel(contactId, label.id)
+    }));
   };
 
   const scrollToBottom = () => {
@@ -295,16 +466,30 @@ export const WhapiChatList: React.FC = () => {
     }
   };
 
+  const loadContactInfo = async (contactId: string) => {
+    try {
+      const result = await whapiClient.getContact(contactId);
+      if (result.success && result.data) {
+        setContactInfo(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading contact info:', error);
+    }
+  };
+
   const handleChatClick = (chat: Chat) => {
     setSelectedChat(chat);
+    setContactInfo(null);
     setDrawerOpen(true);
     loadMessages(chat.id);
+    loadContactInfo(chat.id);
   };
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setSelectedChat(null);
     setMessages([]);
+    setContactInfo(null);
   };
 
   const formatPhone = (id: string): string => {
@@ -358,11 +543,152 @@ export const WhapiChatList: React.FC = () => {
     return prefix + (typeLabels[msg.type] || `[${msg.type}]`);
   };
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   const getMessageContent = (msg: Message): React.ReactNode => {
+    // Texto
     if (msg.type === 'text' && msg.text?.body) {
       return <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text.body}</span>;
     }
 
+    // Imagen
+    if (msg.type === 'image' && msg.image) {
+      return (
+        <div>
+          <a href={msg.image.link} target="_blank" rel="noopener noreferrer">
+            <img
+              src={msg.image.link}
+              alt="Imagen"
+              style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, cursor: 'pointer' }}
+            />
+          </a>
+          {msg.image.caption && (
+            <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{msg.image.caption}</div>
+          )}
+        </div>
+      );
+    }
+
+    // Documento
+    if (msg.type === 'document' && msg.document) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileOutlined style={{ fontSize: 24, color: '#666' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <a
+              href={msg.document.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', fontWeight: 500, wordBreak: 'break-word' }}
+            >
+              {msg.document.filename || msg.document.file_name}
+            </a>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {formatFileSize(msg.document.file_size)}
+              {msg.document.page_count && ` • ${msg.document.page_count} páginas`}
+            </Text>
+            {msg.document.caption && (
+              <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{msg.document.caption}</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Video
+    if (msg.type === 'video' && msg.video) {
+      return (
+        <div>
+          <a href={msg.video.link} target="_blank" rel="noopener noreferrer">
+            <div
+              style={{
+                background: '#000',
+                borderRadius: 8,
+                padding: 20,
+                textAlign: 'center',
+                color: '#fff'
+              }}
+            >
+              🎥 Ver video ({formatFileSize(msg.video.file_size)})
+            </div>
+          </a>
+          {msg.video.caption && (
+            <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{msg.video.caption}</div>
+          )}
+        </div>
+      );
+    }
+
+    // Audio
+    if (msg.type === 'audio' && msg.audio) {
+      return (
+        <audio controls style={{ maxWidth: '100%' }}>
+          <source src={msg.audio.link} type={msg.audio.mime_type} />
+          Tu navegador no soporta audio
+        </audio>
+      );
+    }
+
+    // Nota de voz
+    if (msg.type === 'voice' && msg.voice) {
+      return (
+        <audio controls style={{ maxWidth: '100%' }}>
+          <source src={msg.voice.link} type={msg.voice.mime_type} />
+          Tu navegador no soporta audio
+        </audio>
+      );
+    }
+
+    // Contacto
+    if (msg.type === 'contact' && msg.contact) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#25D366' }} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{msg.contact.name}</div>
+            <Text type="secondary" style={{ fontSize: 11 }}>Contacto compartido</Text>
+          </div>
+        </div>
+      );
+    }
+
+    // Ubicación
+    if (msg.type === 'location' && msg.location) {
+      return (
+        <a
+          href={`https://maps.google.com/?q=${msg.location.latitude},${msg.location.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 24 }}>📍</span>
+            <div>
+              <div style={{ fontWeight: 500 }}>{msg.location.name || 'Ubicación'}</div>
+              {msg.location.address && (
+                <Text type="secondary" style={{ fontSize: 11 }}>{msg.location.address}</Text>
+              )}
+            </div>
+          </div>
+        </a>
+      );
+    }
+
+    // Sticker
+    if (msg.type === 'sticker' && msg.sticker) {
+      return (
+        <img
+          src={msg.sticker.link}
+          alt="Sticker"
+          style={{ maxWidth: 150, maxHeight: 150 }}
+        />
+      );
+    }
+
+    // Fallback para tipos no manejados
     const typeLabels: Record<string, string> = {
       image: '📷 Imagen',
       video: '🎥 Video',
@@ -460,6 +786,22 @@ export const WhapiChatList: React.FC = () => {
                     </Text>
                   }
                 />
+                <Dropdown
+                  menu={{ items: getLabelMenuItems(chat.id) }}
+                  trigger={['click']}
+                  disabled={assigningLabel || loadingLabels}
+                >
+                  <Tooltip title="Asignar etiqueta">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<TagOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                      loading={assigningLabel}
+                      style={{ color: '#666' }}
+                    />
+                  </Tooltip>
+                </Dropdown>
               </List.Item>
             )}
           />
@@ -469,22 +811,44 @@ export const WhapiChatList: React.FC = () => {
       {/* Drawer con historial de mensajes */}
       <Drawer
         title={
-          <Space>
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={handleCloseDrawer}
-            />
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#25D366' }} />
-            <div>
-              <div style={{ fontWeight: 600 }}>
-                {selectedChat ? formatPhone(selectedChat.id) : ''}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <Space>
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={handleCloseDrawer}
+              />
+              <Avatar
+                icon={!contactInfo?.profile_pic && <UserOutlined />}
+                src={contactInfo?.profile_pic}
+                style={{ backgroundColor: '#25D366' }}
+              />
+              <div>
+                <div style={{ fontWeight: 600 }}>
+                  {contactInfo?.name || (selectedChat ? formatPhone(selectedChat.id) : '')}
+                </div>
+                <div style={{ fontSize: 12, color: '#666' }}>
+                  {selectedChat ? formatPhone(selectedChat.id) : ''}
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                {selectedChat?.last_message?.from_name || 'Contacto'}
-              </div>
-            </div>
-          </Space>
+            </Space>
+            {selectedChat && (
+              <Dropdown
+                menu={{ items: getLabelMenuItems(selectedChat.id) }}
+                trigger={['click']}
+                disabled={assigningLabel || loadingLabels}
+              >
+                <Tooltip title="Asignar etiqueta">
+                  <Button
+                    type="text"
+                    icon={<TagsOutlined />}
+                    loading={assigningLabel}
+                    style={{ color: '#25D366' }}
+                  />
+                </Tooltip>
+              </Dropdown>
+            )}
+          </div>
         }
         placement="right"
         width={400}

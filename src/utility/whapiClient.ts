@@ -122,7 +122,7 @@ export class WhapiClient {
             }
           ],
           offline_mode: false,
-          full_history: false
+          full_history: true
         })
       });
 

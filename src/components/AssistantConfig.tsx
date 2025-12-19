@@ -5,7 +5,7 @@ import {
   Input,
   Button,
   Tabs,
-  InputNumber,
+  Switch,
   Typography,
   Space,
   Spin,
@@ -15,80 +15,128 @@ import {
   Row,
   Col,
   Alert,
+  Checkbox,
 } from 'antd';
+import type { CheckboxOptionType } from 'antd';
 import {
   SaveOutlined,
   ReloadOutlined,
   UndoOutlined,
   InfoCircleOutlined,
-  RobotOutlined,
-  ApiOutlined,
   SettingOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  CloudOutlined,
+  GlobalOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { notify } from '../utility/notifications';
 
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
+const { Title, Text } = Typography;
 
-interface ConfigData {
-  system_prompt: string;
-  api_key_wapi: string;
-  sub_agent_system_prompt: string;
-  batch_size: number;
-  max_iterations: number;
+// Tipos para la configuración de Whapi
+interface WebhookEvent {
+  type: string;
+  method: string;
 }
 
-const defaultConfig: ConfigData = {
-  system_prompt: 'Eres ACO, un asistente virtual inteligente especializado en atención al cliente. Tu objetivo es ayudar a los usuarios de manera amable, profesional y eficiente.',
-  api_key_wapi: '',
-  sub_agent_system_prompt: 'Eres un agente especializado que asiste al agente principal. Tu rol es proporcionar información específica y detallada cuando se te solicite.',
-  batch_size: 10,
-  max_iterations: 5,
+interface WebhookConfig {
+  url: string;
+  events: WebhookEvent[];
+  mode: string;
+  headers?: Record<string, string>;
+}
+
+interface MediaConfig {
+  auto_download: string[];
+  init_avatars: boolean;
+}
+
+interface WhapiSettings {
+  media: MediaConfig;
+  webhooks: WebhookConfig[];
+  offline_mode: boolean;
+  full_history: boolean;
+  proxy?: string;
+}
+
+const WHAPI_URL = import.meta.env.VITE_WHAPI_API_URL || 'https://gate.whapi.cloud';
+const WHAPI_TOKEN = import.meta.env.VITE_WHAPI_TOKEN;
+
+const DEFAULT_WEBHOOK_URL = 'https://n8m.agentedecargaonline.com/webhook/8efdc19f-6581-4811-aa80-fbb321082d1e/webhook';
+
+const defaultSettings: WhapiSettings = {
+  media: {
+    auto_download: ['image', 'audio', 'voice', 'document'],
+    init_avatars: true,
+  },
+  webhooks: [
+    {
+      url: DEFAULT_WEBHOOK_URL,
+      events: [{ type: 'messages', method: 'post' }],
+      mode: 'body',
+    },
+  ],
+  offline_mode: true,
+  full_history: true,
+  proxy: '',
 };
+
+const mediaOptions: CheckboxOptionType[] = [
+  { label: 'Imágenes', value: 'image' },
+  { label: 'Audio', value: 'audio' },
+  { label: 'Notas de voz', value: 'voice' },
+  { label: 'Documentos', value: 'document' },
+];
 
 export const AssistantConfig: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [savedConfig, setSavedConfig] = useState<ConfigData>(defaultConfig);
+  const [savedConfig, setSavedConfig] = useState<WhapiSettings>(defaultSettings);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const webhookUrl = import.meta.env.VITE_CONFIG_WEBHOOK_URL || 'https://n8m.agentedecargaonline.com/webhook/configBot';
-
-  // Cargar configuración actual
+  // Cargar configuración actual desde Whapi
   const loadConfig = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(`${WHAPI_URL}/settings`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'accept': 'application/json',
+          'authorization': `Bearer ${WHAPI_TOKEN}`,
+        },
       });
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      const responseData = await response.json();
-      // La respuesta viene como array, tomamos el primer elemento
-      const data = Array.isArray(responseData) ? responseData[0] : responseData;
-      
-      if (!data) {
-        throw new Error('No se encontró configuración guardada');
-      }
+      const data = await response.json();
 
-      const config: ConfigData = {
-        system_prompt: data.system_prompt || defaultConfig.system_prompt,
-        api_key_wapi: data.api_key_wapi || '',
-        sub_agent_system_prompt: data.sub_agent_system_prompt || defaultConfig.sub_agent_system_prompt,
-        batch_size: data.batch_size ?? defaultConfig.batch_size,
-        max_iterations: data.max_iterations ?? defaultConfig.max_iterations,
+      const config: WhapiSettings = {
+        media: {
+          auto_download: data.media?.auto_download || defaultSettings.media.auto_download,
+          init_avatars: data.media?.init_avatars ?? defaultSettings.media.init_avatars,
+        },
+        webhooks: data.webhooks?.length > 0 ? data.webhooks : defaultSettings.webhooks,
+        offline_mode: data.offline_mode ?? defaultSettings.offline_mode,
+        full_history: data.full_history ?? defaultSettings.full_history,
+        proxy: data.proxy || '',
       };
 
-      form.setFieldsValue(config);
+      // Mapear a campos del formulario
+      form.setFieldsValue({
+        auto_download: config.media.auto_download,
+        init_avatars: config.media.init_avatars,
+        webhook_url: config.webhooks[0]?.url || '',
+        offline_mode: config.offline_mode,
+        full_history: config.full_history,
+        proxy: config.proxy,
+      });
+
       setSavedConfig(config);
       setHasChanges(false);
     } catch (error) {
@@ -100,41 +148,74 @@ export const AssistantConfig: React.FC = () => {
         description: errorMsg,
       });
       // Usar valores por defecto si falla la carga
-      form.setFieldsValue(defaultConfig);
-      setSavedConfig(defaultConfig);
+      form.setFieldsValue({
+        auto_download: defaultSettings.media.auto_download,
+        init_avatars: defaultSettings.media.init_avatars,
+        webhook_url: defaultSettings.webhooks[0]?.url || '',
+        offline_mode: defaultSettings.offline_mode,
+        full_history: defaultSettings.full_history,
+        proxy: defaultSettings.proxy,
+      });
+      setSavedConfig(defaultSettings);
     } finally {
       setLoading(false);
     }
-  }, [form, webhookUrl]);
+  }, [form]);
 
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
 
-  // Guardar configuración
+  // Guardar configuración en Whapi
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+      const payload: WhapiSettings = {
+        media: {
+          auto_download: values.auto_download || [],
+          init_avatars: values.init_avatars ?? true,
+        },
+        webhooks: [
+          {
+            url: values.webhook_url,
+            events: [{ type: 'messages', method: 'post' }],
+            mode: 'body',
+          },
+        ],
+        offline_mode: values.offline_mode ?? true,
+        full_history: values.full_history ?? true,
+      };
+
+      // Solo agregar proxy si tiene valor
+      if (values.proxy?.trim()) {
+        payload.proxy = values.proxy.trim();
+      }
+
+      const response = await fetch(`${WHAPI_URL}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'accept': 'application/json',
+          'authorization': `Bearer ${WHAPI_TOKEN}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
       console.log('Config saved:', result);
 
-      setSavedConfig(values);
+      setSavedConfig(payload);
       setHasChanges(false);
       notify.success({
         message: '¡Configuración guardada!',
-        description: 'Los cambios se aplicarán en las próximas conversaciones.',
+        description: 'Los cambios se aplicaron correctamente en Whapi.',
       });
     } catch (error) {
       console.error('Error saving config:', error);
@@ -150,7 +231,14 @@ export const AssistantConfig: React.FC = () => {
 
   // Descartar cambios
   const handleDiscard = () => {
-    form.setFieldsValue(savedConfig);
+    form.setFieldsValue({
+      auto_download: savedConfig.media.auto_download,
+      init_avatars: savedConfig.media.init_avatars,
+      webhook_url: savedConfig.webhooks[0]?.url || '',
+      offline_mode: savedConfig.offline_mode,
+      full_history: savedConfig.full_history,
+      proxy: savedConfig.proxy,
+    });
     setHasChanges(false);
     notify.info({
       message: 'Cambios descartados',
@@ -160,7 +248,14 @@ export const AssistantConfig: React.FC = () => {
 
   // Restaurar valores por defecto
   const handleRestoreDefaults = () => {
-    form.setFieldsValue(defaultConfig);
+    form.setFieldsValue({
+      auto_download: defaultSettings.media.auto_download,
+      init_avatars: defaultSettings.media.init_avatars,
+      webhook_url: defaultSettings.webhooks[0]?.url || '',
+      offline_mode: defaultSettings.offline_mode,
+      full_history: defaultSettings.full_history,
+      proxy: defaultSettings.proxy,
+    });
     setHasChanges(true);
     notify.warning({
       message: 'Valores por defecto cargados',
@@ -170,121 +265,113 @@ export const AssistantConfig: React.FC = () => {
 
   // Detectar cambios en el formulario
   const handleValuesChange = () => {
-    const currentValues = form.getFieldsValue();
-    const changed = JSON.stringify(currentValues) !== JSON.stringify(savedConfig);
-    setHasChanges(changed);
+    setHasChanges(true);
   };
 
-  // Tab 1: Prompts del Sistema
-  const renderPromptsTab = () => (
+  // Tab 1: Webhook y Conexiones
+  const renderWebhookTab = () => (
     <div>
       <Alert
-        message="Consejos para escribir buenos prompts"
-        description={
-          <ul style={{ margin: '8px 0', paddingLeft: 20 }}>
-            <li>Sé específico sobre el rol y personalidad del asistente</li>
-            <li>Define el tono de comunicación (formal, amigable, técnico)</li>
-            <li>Incluye instrucciones sobre qué hacer y qué evitar</li>
-            <li>Menciona el contexto del negocio si es relevante</li>
-          </ul>
-        }
+        message="Configuración del Webhook"
+        description="El webhook recibe los mensajes entrantes de WhatsApp para procesarlos con tu asistente."
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
       />
 
       <Form.Item
-        name="system_prompt"
+        name="webhook_url"
         label={
           <Space>
-            <span>Prompt del Sistema Principal</span>
-            <Tooltip title="Este es el prompt principal que define la personalidad y comportamiento del asistente ACO">
+            <span>URL del Webhook</span>
+            <Tooltip title="URL donde se enviarán los mensajes entrantes de WhatsApp">
               <InfoCircleOutlined style={{ color: '#8696A0' }} />
             </Tooltip>
           </Space>
         }
         rules={[
-          { required: true, message: 'El prompt del sistema es requerido' },
-          { min: 50, message: 'El prompt debe tener al menos 50 caracteres' },
+          { required: true, message: 'La URL del webhook es requerida' },
+          { type: 'url', message: 'Ingresa una URL válida' },
         ]}
       >
-        <TextArea
-          rows={8}
-          placeholder="Ej: Eres ACO, un asistente virtual inteligente..."
-          showCount
+        <Input
+          placeholder="https://tu-servidor.com/webhook"
+          style={{ maxWidth: 600 }}
         />
       </Form.Item>
 
       <Divider />
 
       <Form.Item
-        name="sub_agent_system_prompt"
+        name="proxy"
         label={
           <Space>
-            <span>Prompt del Sub-Agente</span>
-            <Tag color="blue">Opcional</Tag>
-            <Tooltip title="Prompt para el agente secundario que asiste en tareas específicas">
+            <span>Proxy (opcional)</span>
+            <Tag color="blue">Avanzado</Tag>
+            <Tooltip title="Proxy SOCKS5 para la conexión. Formato: socks5://user:pass@host:port">
               <InfoCircleOutlined style={{ color: '#8696A0' }} />
             </Tooltip>
           </Space>
         }
       >
-        <TextArea
-          rows={5}
-          placeholder="Ej: Eres un agente especializado que asiste al agente principal..."
-          showCount
+        <Input
+          placeholder="socks5://usuario:contraseña@host:puerto"
+          style={{ maxWidth: 600 }}
         />
       </Form.Item>
     </div>
   );
 
-  // Tab 2: API y Conexiones
-  const renderApiTab = () => (
+  // Tab 2: Media y Descargas
+  const renderMediaTab = () => (
     <div>
-      <Row gutter={[24, 24]}>
-        <Col span={24}>
-          <Card size="small" style={{ backgroundColor: 'rgba(52, 183, 241, 0.05)', border: '1px solid rgba(52, 183, 241, 0.2)' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space>
-                <ApiOutlined style={{ color: '#34B7F1' }} />
-                <Text strong>Webhook de Configuración</Text>
-              </Space>
-              <Text type="secondary" copyable={{ text: webhookUrl }}>
-                {webhookUrl}
-              </Text>
-            </Space>
-          </Card>
-        </Col>
+      <Alert
+        message="Descarga automática de medios"
+        description="Selecciona qué tipos de archivos se descargarán automáticamente cuando lleguen mensajes."
+        type="info"
+        showIcon
+        style={{ marginBottom: 24 }}
+      />
 
-        <Col span={24}>
-          <Form.Item
-            name="api_key_wapi"
-            label={
-              <Space>
-                <span>API Key de WhatsApp</span>
-                <Tag color="green">Seguro</Tag>
-                <Tooltip title="Clave de API para la integración con Whapi">
-                  <InfoCircleOutlined style={{ color: '#8696A0' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Input.Password
-              placeholder="Ingresa tu API key..."
-              style={{ maxWidth: 500 }}
-            />
-          </Form.Item>
-        </Col>
-      </Row>
+      <Form.Item
+        name="auto_download"
+        label={
+          <Space>
+            <span>Tipos de media a descargar</span>
+            <Tooltip title="Los archivos seleccionados se descargarán automáticamente">
+              <InfoCircleOutlined style={{ color: '#8696A0' }} />
+            </Tooltip>
+          </Space>
+        }
+      >
+        <Checkbox.Group options={mediaOptions} />
+      </Form.Item>
+
+      <Divider />
+
+      <Form.Item
+        name="init_avatars"
+        label={
+          <Space>
+            <span>Cargar avatares de contactos</span>
+            <Tooltip title="Descarga las fotos de perfil de los contactos automáticamente">
+              <InfoCircleOutlined style={{ color: '#8696A0' }} />
+            </Tooltip>
+          </Space>
+        }
+        valuePropName="checked"
+      >
+        <Switch checkedChildren="Sí" unCheckedChildren="No" />
+      </Form.Item>
     </div>
   );
 
-  // Tab 3: Parámetros Avanzados
-  const renderAdvancedTab = () => (
+  // Tab 3: Comportamiento
+  const renderBehaviorTab = () => (
     <div>
       <Alert
-        message="Parámetros de rendimiento"
-        description="Estos valores afectan cómo el asistente procesa las conversaciones. Modifica con precaución."
+        message="Configuración de comportamiento"
+        description="Estos ajustes controlan cómo el canal de WhatsApp maneja las conexiones y el historial."
         type="warning"
         showIcon
         style={{ marginBottom: 24 }}
@@ -293,51 +380,41 @@ export const AssistantConfig: React.FC = () => {
       <Row gutter={[24, 24]}>
         <Col xs={24} sm={12}>
           <Form.Item
-            name="batch_size"
+            name="offline_mode"
             label={
               <Space>
-                <span>Tamaño de Lote (batch_size)</span>
-                <Tooltip title="Número de mensajes que se procesan en cada iteración. Valores más altos pueden mejorar el rendimiento pero consumen más recursos.">
+                <span>Modo offline</span>
+                <Tooltip title="Permite recibir mensajes incluso cuando el dispositivo principal está desconectado">
                   <InfoCircleOutlined style={{ color: '#8696A0' }} />
                 </Tooltip>
               </Space>
             }
-            rules={[{ required: true, message: 'Este campo es requerido' }]}
+            valuePropName="checked"
           >
-            <InputNumber
-              min={1}
-              max={50}
-              style={{ width: '100%' }}
-              addonAfter="mensajes"
-            />
+            <Switch checkedChildren="Activado" unCheckedChildren="Desactivado" />
           </Form.Item>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Recomendado: 5-15 para uso normal
+            Recomendado: Activado para no perder mensajes
           </Text>
         </Col>
 
         <Col xs={24} sm={12}>
           <Form.Item
-            name="max_iterations"
+            name="full_history"
             label={
               <Space>
-                <span>Máximo de Iteraciones</span>
-                <Tooltip title="Número máximo de veces que el agente puede iterar para completar una tarea compleja.">
+                <span>Historial completo</span>
+                <Tooltip title="Sincroniza todo el historial de mensajes al conectar">
                   <InfoCircleOutlined style={{ color: '#8696A0' }} />
                 </Tooltip>
               </Space>
             }
-            rules={[{ required: true, message: 'Este campo es requerido' }]}
+            valuePropName="checked"
           >
-            <InputNumber
-              min={1}
-              max={20}
-              style={{ width: '100%' }}
-              addonAfter="iteraciones"
-            />
+            <Switch checkedChildren="Activado" unCheckedChildren="Desactivado" />
           </Form.Item>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Recomendado: 3-7 para balance óptimo
+            Recomendado: Activado para tener contexto completo
           </Text>
         </Col>
       </Row>
@@ -346,34 +423,34 @@ export const AssistantConfig: React.FC = () => {
 
   const tabItems = [
     {
-      key: 'prompts',
+      key: 'webhook',
       label: (
         <Space>
-          <RobotOutlined />
-          Prompts del Sistema
+          <GlobalOutlined />
+          Webhook
         </Space>
       ),
-      children: renderPromptsTab(),
+      children: renderWebhookTab(),
     },
     {
-      key: 'api',
+      key: 'media',
       label: (
         <Space>
-          <ApiOutlined />
-          API y Conexiones
+          <DownloadOutlined />
+          Media
         </Space>
       ),
-      children: renderApiTab(),
+      children: renderMediaTab(),
     },
     {
-      key: 'advanced',
+      key: 'behavior',
       label: (
         <Space>
           <SettingOutlined />
-          Parámetros Avanzados
+          Comportamiento
         </Space>
       ),
-      children: renderAdvancedTab(),
+      children: renderBehaviorTab(),
     },
   ];
 
@@ -382,17 +459,17 @@ export const AssistantConfig: React.FC = () => {
       <div style={{ textAlign: 'center', padding: 100 }}>
         <Spin size="large" />
         <div style={{ marginTop: 16 }}>
-          <Text type="secondary">Cargando configuración...</Text>
+          <Text type="secondary">Cargando configuración de Whapi...</Text>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
           <div style={{
             width: 48,
             height: 48,
@@ -402,11 +479,11 @@ export const AssistantConfig: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <RobotOutlined style={{ fontSize: 24, color: '#fff' }} />
+            <CloudOutlined style={{ fontSize: 24, color: '#fff' }} />
           </div>
           <div>
-            <Title level={4} style={{ margin: 0 }}>Configuración del Asistente ACO</Title>
-            <Text type="secondary">Personaliza el comportamiento y parámetros del asistente</Text>
+            <Title level={4} style={{ margin: 0 }}>Configuración de Whapi</Title>
+            <Text type="secondary">Ajustes del canal de WhatsApp</Text>
           </div>
           {hasChanges && (
             <Tag color="orange" icon={<ExclamationCircleOutlined />}>
@@ -444,7 +521,6 @@ export const AssistantConfig: React.FC = () => {
           form={form}
           layout="vertical"
           onValuesChange={handleValuesChange}
-          initialValues={defaultConfig}
         >
           <Tabs items={tabItems} />
         </Form>

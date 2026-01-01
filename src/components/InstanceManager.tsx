@@ -7,6 +7,8 @@ import { Databases, Query } from '@refinedev/appwrite';
 import { validateInstanceName, generateInstanceName } from '../utility/instanceUtils';
 import { notify } from '../utility/notifications';
 import { useNavigate } from 'react-router';
+import { Color } from 'antd/es/color-picker';
+import { text } from 'stream/consumers';
 
 const { Title, Text } = Typography;
 
@@ -352,10 +354,10 @@ export const InstanceManager: React.FC = () => {
         duration: 6,
       });
 
-      // Mostrar modal con video tutorial
+      // Navegar directamente al QR sin mostrar video
       setCreatedInstanceName(fullInstanceName);
       handleCloseModal();
-      setShowVideoModal(true);
+      navigate(`/whatsapp/scan/${fullInstanceName}`);
     } catch (error) {
       console.error('Error creating instance:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -475,7 +477,7 @@ export const InstanceManager: React.FC = () => {
     <Form layout="vertical">
       <div style={{ marginBottom: '16px' }}>
         <Text type="secondary">
-          Configura la integración con Chatwoot (opcional). Si no deseas integrar Chatwoot, puedes omitir estos campos.
+          Configura la integración con Chatwoot (opcional). Si no deseas integrar Chatwoot, puedes <strong color='red'>OMITIR ÉSTOS CAMPOS.</strong>
         </Text>
       </div>
 

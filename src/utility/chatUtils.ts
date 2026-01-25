@@ -148,10 +148,16 @@ export function formatLastMessageTime(timestamp: number): string {
  * @returns Display name
  */
 export function getChatDisplayName(chat: Chat): string {
+  // Prioridad: pushName > name > remoteJid formateado
+  if (chat.pushName) {
+    return chat.pushName;
+  }
   if (chat.name) {
     return chat.name;
   }
-  return formatPhoneNumber(chat.id);
+  // Usar remoteJid si está disponible, sino usar id
+  const jid = chat.remoteJid || chat.id;
+  return formatPhoneNumber(jid);
 }
 
 /**

@@ -65,15 +65,36 @@ export interface Message {
   status?: 'PENDING' | 'SERVER_ACK' | 'DELIVERY_ACK' | 'READ' | 'PLAYED';
 }
 
-// Chat structure
+// Chat structure (Evolution API v2 - Formato real)
 export interface Chat {
-  id: string;
+  id: string;                    // ID interno de la base de datos
+  remoteJid: string;             // JID de WhatsApp (ej: "5511999999999@s.whatsapp.net")
+  pushName?: string;             // Nombre del contacto
+  profilePicUrl?: string;        // URL de la foto de perfil
+  createdAt?: string;            // Fecha de creación
+  updatedAt?: string;            // Última actualización
+  windowStart?: string;          // Inicio de ventana de mensajes
+  windowExpires?: string;        // Expiración de ventana
+  windowActive?: boolean;        // Si la ventana está activa
+  instanceId?: string;           // ID de la instancia
+  isGroup: boolean;              // Si es un grupo
+  isSaved?: boolean;             // Si está guardado
+  type?: string;                 // Tipo: "contact" o "group"
+  unreadCount?: number;          // Mensajes no leídos
+  lastMessage?: {
+    id: string;
+    key?: Record<string, unknown>;
+    pushName?: string;
+    messageType: string;         // Tipo: "conversation", "imageMessage", etc.
+    message: string;             // Texto del mensaje
+    messageTimestamp: string;    // Timestamp como string
+    status?: string;             // Estado: "DELIVERED", "READ", etc.
+  };
+  
+  // Campos legacy para retrocompatibilidad
   name?: string;
-  unreadCount?: number;
   conversationTimestamp?: number;
-  lastMessage?: Message;
   profilePictureUrl?: string;
-  isGroup?: boolean;
 }
 
 // WhatsApp account/instance
@@ -87,15 +108,25 @@ export interface WhatsAppAccount {
   chatwoot_name_inbox?: string;
 }
 
-// API Response types
+// API Response types (Evolution API v2 - Nueva estructura)
+export interface EvolutionAPIResponse<T> {
+  status: 'SUCCESS' | 'ERROR';
+  error: boolean;
+  response: T;
+}
+
 export interface FetchChatsResponse {
-  chats?: Chat[];
-  error?: string;
+  chats: Chat[];
+  total?: number;
+  page?: number;
+  limit?: number;
 }
 
 export interface FetchMessagesResponse {
-  messages?: Message[];
-  error?: string;
+  messages: Message[];
+  total?: number;
+  page?: number;
+  limit?: number;
 }
 
 export interface SendMessageResponse {

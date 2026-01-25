@@ -69,24 +69,49 @@ export default class EvolutionChatClient {
       console.log('📥 Fetching chats for:', this.instanceName);
       
       // Evolution API v2 usa POST para findChats
-      const response = await this.request<Record<string, unknown>>(
+      const response = await this.request<unknown>(
         `/chat/findChats/${this.instanceName}`,
         'POST',
         {} // Body vacío pero requerido para POST
       );
 
-      // Evolution API puede devolver diferentes estructuras
+      console.log('📦 Raw response type:', Array.isArray(response) ? 'Array' : typeof response);
+
       let chats: Chat[] = [];
       
+      // Formato real: Array directo
       if (Array.isArray(response)) {
-        chats = response;
-      } else if (response.chats && Array.isArray(response.chats)) {
-        chats = response.chats;
-      } else if (response.data && Array.isArray(response.data)) {
-        chats = response.data;
+        chats = response as Chat[];
+        console.log(`✅ Loaded ${chats.length} chats`);
+        
+        // Log de ejemplo del primer chat para debugging
+        if (chats.length > 0) {
+          console.log('📋 Sample chat structure:', {
+            id: chats[0].id,
+            remoteJid: chats[0].remoteJid,
+            pushName: chats[0].pushName,
+            isGroup: chats[0].isGroup,
+            unreadCount: chats[0].unreadCount,
+            hasLastMessage: !!chats[0].lastMessage
+          });
+        }
+      }
+      // Fallback: Objeto con diferentes propiedades (por si acaso)
+      else if (response && typeof response === 'object') {
+        const responseObj = response as Record<string, unknown>;
+        
+        if (responseObj.chats && Array.isArray(responseObj.chats)) {
+          chats = responseObj.chats as Chat[];
+          console.log(`✅ Loaded ${chats.length} chats (wrapped format)`);
+        } else if (responseObj.response && typeof responseObj.response === 'object') {
+          const innerResponse = responseObj.response as Record<string, unknown>;
+          if (innerResponse.chats && Array.isArray(innerResponse.chats)) {
+            chats = innerResponse.chats as Chat[];
+            console.log(`✅ Loaded ${chats.length} chats (nested format)`);
+          }
+        }
       }
 
-      console.log(`✅ Loaded ${chats.length} chats`);
       return chats;
     } catch (error) {
       console.error('❌ Error fetching chats:', error);
@@ -101,7 +126,7 @@ export default class EvolutionChatClient {
     try {
       console.log('📥 Fetching messages for:', chatId);
       
-      const response = await this.request<Record<string, unknown>>(
+      const response = await this.request<unknown>(
         `/chat/findMessages/${this.instanceName}`,
         'POST',
         {
@@ -116,18 +141,30 @@ export default class EvolutionChatClient {
 
       let messages: Message[] = [];
       
+      // Formato: Array directo
       if (Array.isArray(response)) {
-        messages = response;
-      } else if (response.messages && Array.isArray(response.messages)) {
-        messages = response.messages;
-      } else if (response.data && Array.isArray(response.data)) {
-        messages = response.data;
+        messages = response as Message[];
+        console.log(`✅ Loaded ${messages.length} messages`);
+      }
+      // Fallback: Objeto con diferentes propiedades
+      else if (response && typeof response === 'object') {
+        const responseObj = response as Record<string, unknown>;
+        
+        if (responseObj.messages && Array.isArray(responseObj.messages)) {
+          messages = responseObj.messages as Message[];
+          console.log(`✅ Loaded ${messages.length} messages (wrapped format)`);
+        } else if (responseObj.response && typeof responseObj.response === 'object') {
+          const innerResponse = responseObj.response as Record<string, unknown>;
+          if (innerResponse.messages && Array.isArray(innerResponse.messages)) {
+            messages = innerResponse.messages as Message[];
+            console.log(`✅ Loaded ${messages.length} messages (nested format)`);
+          }
+        }
       }
 
       // Sort by timestamp ascending (oldest first)
       messages.sort((a, b) => a.messageTimestamp - b.messageTimestamp);
 
-      console.log(`✅ Loaded ${messages.length} messages`);
       return messages;
     } catch (error) {
       console.error('❌ Error fetching messages:', error);

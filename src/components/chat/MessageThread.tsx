@@ -42,15 +42,17 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   // Load messages
   const loadMessages = async () => {
     try {
-      console.log('🔄 Cargando mensajes para:', chat.id);
-      const msgs = await chatClient.fetchMessages(chat.id, 100);
+      // Usar remoteJid si está disponible, sino usar id
+      const chatId = chat.remoteJid || chat.id;
+      console.log('🔄 Cargando mensajes para:', chatId);
+      const msgs = await chatClient.fetchMessages(chatId, 100);
       setMessages(msgs);
 
       // Mark as read if there are unread messages
       if (msgs.length > 0) {
         const lastMessage = msgs[msgs.length - 1];
         if (!lastMessage.key.fromMe) {
-          await chatClient.markAsRead(chat.id, lastMessage.key.id);
+          await chatClient.markAsRead(chatId, lastMessage.key.id);
         }
       }
     } catch (error) {
@@ -63,7 +65,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   // Load profile picture
   const loadProfilePicture = async () => {
     try {
-      const pic = await chatClient.getProfilePicture(chat.id);
+      // Usar remoteJid si está disponible, sino usar id
+      const jid = chat.remoteJid || chat.id;
+      const pic = await chatClient.getProfilePicture(jid);
       setProfilePic(pic);
     } catch (error) {
       console.error('❌ Error cargando foto de perfil:', error);

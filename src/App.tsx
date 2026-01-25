@@ -4,6 +4,7 @@ import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 import { ScanInstance } from "./pages/whatsapp/scanIstance";
 import { Dashboard } from "./pages/Dashboard";
 import { AssistantConfigPage } from "./pages/AssistantConfigPage";
+import ChatPage from "./pages/ChatPage";
 
 import {
   AuthPage,
@@ -72,6 +73,7 @@ function App() {
                     }
                   >
                     <Route index element={<Dashboard />} />
+                    <Route path="/chat" element={<ChatPage />} />
                     <Route path="/assistant-config" element={<AssistantConfigPage />} />
                     <Route path="/whatsapp/scan/:instanceName" element={<ScanInstance />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Space, Button } from 'antd';
-import { WhatsAppOutlined, RobotOutlined } from '@ant-design/icons';
+import { WhatsAppOutlined, RobotOutlined, MessageOutlined } from '@ant-design/icons';
 import { InstanceManager } from '../components';
 import { useNavigate } from 'react-router';
 
@@ -51,14 +51,24 @@ export const Dashboard: React.FC = () => {
               </Text>
             </div>
           </Space>
-          <Button
-            type="default"
-            icon={<RobotOutlined />}
-            onClick={() => navigate('/assistant-config')}
-            size="large"
-          >
-            Configurar Asistente
-          </Button>
+          <Space size="middle">
+            <Button
+              type="default"
+              icon={<MessageOutlined />}
+              onClick={() => navigate('/chat')}
+              size="large"
+            >
+              Chat Multiagente
+            </Button>
+            <Button
+              type="default"
+              icon={<RobotOutlined />}
+              onClick={() => navigate('/assistant-config')}
+              size="large"
+            >
+              Configurar Asistente
+            </Button>
+          </Space>
         </div>
       </div>
 

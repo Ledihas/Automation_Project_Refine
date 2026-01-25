@@ -6,8 +6,6 @@
 import type {
   Chat,
   Message,
-  FetchChatsResponse,
-  FetchMessagesResponse,
   SendMessageResponse,
 } from './chatTypes';
 import { extractNumberFromJid, fileToBase64 } from './chatUtils';
@@ -29,7 +27,7 @@ export default class EvolutionChatClient {
   private async request<T>(
     endpoint: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-    body?: any
+    body?: Record<string, unknown>
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
@@ -57,7 +55,7 @@ export default class EvolutionChatClient {
 
     try {
       return JSON.parse(text) as T;
-    } catch (e) {
+    } catch {
       console.error('❌ Failed to parse response:', text);
       throw new Error('Invalid JSON response');
     }
@@ -70,8 +68,11 @@ export default class EvolutionChatClient {
     try {
       console.log('📥 Fetching chats for:', this.instanceName);
       
-      const response = await this.request<any>(
-        `/chat/findChats/${this.instanceName}`
+      // Evolution API v2 usa POST para findChats
+      const response = await this.request<Record<string, unknown>>(
+        `/chat/findChats/${this.instanceName}`,
+        'POST',
+        {} // Body vacío pero requerido para POST
       );
 
       // Evolution API puede devolver diferentes estructuras
@@ -100,7 +101,7 @@ export default class EvolutionChatClient {
     try {
       console.log('📥 Fetching messages for:', chatId);
       
-      const response = await this.request<any>(
+      const response = await this.request<Record<string, unknown>>(
         `/chat/findMessages/${this.instanceName}`,
         'POST',
         {
@@ -217,13 +218,14 @@ export default class EvolutionChatClient {
    */
   async getProfilePicture(jid: string): Promise<string | null> {
     try {
-      const response = await this.request<any>(
+      // Evolution API v2 usa POST para fetchProfilePictureUrl
+      const response = await this.request<Record<string, unknown>>(
         `/chat/fetchProfilePictureUrl/${this.instanceName}`,
         'POST',
         { number: extractNumberFromJid(jid) }
       );
 
-      return response?.profilePictureUrl || null;
+      return (response?.profilePictureUrl as string) || null;
     } catch (error) {
       console.error('❌ Error fetching profile picture:', error);
       return null;

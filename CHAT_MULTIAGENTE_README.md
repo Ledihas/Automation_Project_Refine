@@ -149,12 +149,14 @@ VITE_APPWRITE_WHATSAPP_COLLECTION_ID=whatsapp_accounts
 ```
 
 ### Endpoints de Evolution API Utilizados
-- `GET /chat/findChats/{instanceName}` - Obtener conversaciones
+- `POST /chat/findChats/{instanceName}` - Obtener conversaciones
 - `POST /chat/findMessages/{instanceName}` - Obtener mensajes
 - `POST /message/sendText/{instanceName}` - Enviar texto
 - `POST /message/sendMedia/{instanceName}` - Enviar media
 - `POST /chat/markMessageAsRead/{instanceName}` - Marcar como leído
 - `POST /chat/fetchProfilePictureUrl/{instanceName}` - Foto de perfil
+
+**Nota importante**: Todos los endpoints de gestión de chats son POST en Evolution API v2.
 
 ### Polling y Actualización
 - **Conversaciones**: Actualización manual con botón

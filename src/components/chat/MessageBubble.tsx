@@ -10,10 +10,8 @@ import {
 } from '@ant-design/icons';
 import type { Message } from '../../utility/chatTypes';
 import {
-  getMessageText,
   getMessageType,
   formatMessageTime,
-  formatFileSize,
 } from '../../utility/chatUtils';
 
 const { Text, Link } = Typography;
@@ -58,6 +56,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
   // Render image message
   const renderImageMessage = () => {
     const img = message.message.imageMessage!;
+    
+    // Validar que la imagen tenga URL
+    if (!img.url) {
+      return (
+        <div>
+          {isGroup && !isFromMe && (
+            <Text strong style={{ color: '#25D366', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {message.pushName || 'Usuario'}
+            </Text>
+          )}
+          <Text type="secondary">📷 Imagen no disponible</Text>
+          {img.caption && (
+            <Text style={{ fontSize: 14, display: 'block', marginTop: 4 }}>{img.caption}</Text>
+          )}
+        </div>
+      );
+    }
+    
     return (
       <div>
         {isGroup && !isFromMe && (
@@ -70,6 +86,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
           alt="Imagen"
           style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 4 }}
           preview
+          fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         />
         {img.caption && (
           <Text style={{ fontSize: 14, display: 'block', marginTop: 4 }}>{img.caption}</Text>
@@ -81,6 +98,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
   // Render video message
   const renderVideoMessage = () => {
     const video = message.message.videoMessage!;
+    
+    // Validar que el video tenga URL
+    if (!video.url) {
+      return (
+        <div>
+          {isGroup && !isFromMe && (
+            <Text strong style={{ color: '#25D366', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {message.pushName || 'Usuario'}
+            </Text>
+          )}
+          <Text type="secondary">🎥 Video no disponible</Text>
+          {video.caption && (
+            <Text style={{ fontSize: 14, display: 'block', marginTop: 4 }}>{video.caption}</Text>
+          )}
+        </div>
+      );
+    }
+    
     return (
       <div>
         {isGroup && !isFromMe && (
@@ -130,6 +165,30 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
     const doc = message.message.documentMessage!;
     const fileName = doc.fileName || doc.title || 'Documento';
     
+    // Validar que el documento tenga URL
+    if (!doc.url) {
+      return (
+        <div>
+          {isGroup && !isFromMe && (
+            <Text strong style={{ color: '#25D366', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {message.pushName || 'Usuario'}
+            </Text>
+          )}
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <FileOutlined style={{ fontSize: 32, color: '#54656f' }} />
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: 14, display: 'block' }}>{fileName}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Documento no disponible
+                </Text>
+              </div>
+            </div>
+          </Space>
+        </div>
+      );
+    }
+    
     return (
       <div>
         {isGroup && !isFromMe && (
@@ -168,6 +227,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
     const audio = message.message.audioMessage!;
     const isPTT = audio.ptt; // Push-to-talk (voice note)
     
+    // Validar que el audio tenga URL
+    if (!audio.url) {
+      return (
+        <div>
+          {isGroup && !isFromMe && (
+            <Text strong style={{ color: '#25D366', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {message.pushName || 'Usuario'}
+            </Text>
+          )}
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Tag color={isPTT ? 'green' : 'blue'}>
+              {isPTT ? '🎤 Audio de voz no disponible' : '🎵 Audio no disponible'}
+            </Tag>
+          </Space>
+        </div>
+      );
+    }
+    
     return (
       <div>
         {isGroup && !isFromMe && (
@@ -191,6 +268,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
   // Render sticker message
   const renderStickerMessage = () => {
     const sticker = message.message.stickerMessage!;
+    
+    // Validar que el sticker tenga URL
+    if (!sticker.url) {
+      return (
+        <div>
+          {isGroup && !isFromMe && (
+            <Text strong style={{ color: '#25D366', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {message.pushName || 'Usuario'}
+            </Text>
+          )}
+          <Text type="secondary">🎨 Sticker no disponible</Text>
+        </div>
+      );
+    }
+    
     return (
       <div>
         {isGroup && !isFromMe && (
@@ -202,6 +294,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
           src={sticker.url}
           alt="Sticker"
           style={{ maxWidth: 150, maxHeight: 150 }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.parentElement!.innerHTML = '<span style="color: #8696A0;">🎨 Sticker no disponible</span>';
+          }}
         />
       </div>
     );

@@ -22,6 +22,11 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
+  // Validar que el mensaje tenga estructura mínima
+  if (!message || !message.key) {
+    return null;
+  }
+
   const isFromMe = message.key.fromMe;
   const messageType = getMessageType(message);
   const timestamp = formatMessageTime(message.messageTimestamp);
@@ -40,6 +45,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render text message
   const renderTextMessage = () => {
+    // Validar que message.message existe
+    if (!message.message) {
+      return <Text type="secondary">Mensaje no disponible</Text>;
+    }
+    
     const text = message.message.conversation || message.message.extendedTextMessage?.text || '';
     return (
       <div>
@@ -55,7 +65,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render image message
   const renderImageMessage = () => {
-    const img = message.message.imageMessage!;
+    if (!message.message?.imageMessage) {
+      return <Text type="secondary">📷 Imagen no disponible</Text>;
+    }
+    const img = message.message.imageMessage;
     
     // Validar que la imagen tenga URL
     if (!img.url) {
@@ -97,7 +110,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render video message
   const renderVideoMessage = () => {
-    const video = message.message.videoMessage!;
+    if (!message.message?.videoMessage) {
+      return <Text type="secondary">🎥 Video no disponible</Text>;
+    }
+    const video = message.message.videoMessage;
     
     // Validar que el video tenga URL
     if (!video.url) {
@@ -162,7 +178,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render document message
   const renderDocumentMessage = () => {
-    const doc = message.message.documentMessage!;
+    if (!message.message?.documentMessage) {
+      return <Text type="secondary">📄 Documento no disponible</Text>;
+    }
+    const doc = message.message.documentMessage;
     const fileName = doc.fileName || doc.title || 'Documento';
     
     // Validar que el documento tenga URL
@@ -224,7 +243,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render audio message
   const renderAudioMessage = () => {
-    const audio = message.message.audioMessage!;
+    if (!message.message?.audioMessage) {
+      return <Text type="secondary">🔊 Audio no disponible</Text>;
+    }
+    const audio = message.message.audioMessage;
     const isPTT = audio.ptt; // Push-to-talk (voice note)
     
     // Validar que el audio tenga URL
@@ -267,7 +289,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render sticker message
   const renderStickerMessage = () => {
-    const sticker = message.message.stickerMessage!;
+    if (!message.message?.stickerMessage) {
+      return <Text type="secondary">✨ Sticker no disponible</Text>;
+    }
+    const sticker = message.message.stickerMessage;
     
     // Validar que el sticker tenga URL
     if (!sticker.url) {
@@ -305,7 +330,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render location message
   const renderLocationMessage = () => {
-    const location = message.message.locationMessage!;
+    if (!message.message?.locationMessage) {
+      return <Text type="secondary">📍 Ubicación no disponible</Text>;
+    }
+    const location = message.message.locationMessage;
     const mapsUrl = `https://www.google.com/maps?q=${location.degreesLatitude},${location.degreesLongitude}`;
     
     return (
@@ -329,7 +357,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isGroup }) => {
 
   // Render contact message
   const renderContactMessage = () => {
-    const contact = message.message.contactMessage!;
+    if (!message.message?.contactMessage) {
+      return <Text type="secondary">👤 Contacto no disponible</Text>;
+    }
+    const contact = message.message.contactMessage;
     
     return (
       <div>

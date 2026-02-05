@@ -11,6 +11,17 @@ dayjs.extend(relativeTime);
 dayjs.locale('es');
 
 /**
+ * Normalize remoteJid to base identifier (removes @s.whatsapp.net, @lid, etc.)
+ * This ensures chats with different JID representations are treated as the same conversation
+ * @param remoteJid - WhatsApp JID with suffix
+ * @returns Base identifier without suffix
+ */
+export function normalizeRemoteJid(remoteJid: string): string {
+  if (!remoteJid) return '';
+  return remoteJid.split('@')[0];
+}
+
+/**
  * Extract phone number from WhatsApp JID
  * @param jid - WhatsApp JID (e.g., "5511999999999@s.whatsapp.net")
  * @returns Phone number without suffix
@@ -43,6 +54,11 @@ export function formatPhoneNumber(jid: string): string {
  * @returns Text content or type description
  */
 export function getMessageText(message: Message): string {
+  // Validar que message.message exista
+  if (!message.message) {
+    return 'Mensaje';
+  }
+  
   if (message.message.conversation) {
     return message.message.conversation;
   }
@@ -79,6 +95,11 @@ export function getMessageText(message: Message): string {
  * @returns Message type
  */
 export function getMessageType(message: Message): string {
+  // Validar que message.message exista
+  if (!message.message) {
+    return 'unknown';
+  }
+  
   if (message.message.conversation || message.message.extendedTextMessage) {
     return 'text';
   }
@@ -162,13 +183,37 @@ export function getChatDisplayName(chat: Chat): string {
 
 /**
  * Sort chats by last message timestamp
+ * Prioritiza lastMessage.messageTimestamp, luego conversationTimestamp
  * @param chats - Array of chats
  * @returns Sorted chats
  */
 export function sortChatsByTimestamp(chats: Chat[]): Chat[] {
   return [...chats].sort((a, b) => {
-    const timeA = a.conversationTimestamp || 0;
-    const timeB = b.conversationTimestamp || 0;
+    // Obtener timestamp de a
+    let timeA = 0;
+    if (a.lastMessage?.messageTimestamp) {
+      timeA = typeof a.lastMessage.messageTimestamp === 'string'
+        ? parseInt(a.lastMessage.messageTimestamp)
+        : a.lastMessage.messageTimestamp;
+    } else if (a.conversationTimestamp) {
+      timeA = a.conversationTimestamp;
+    } else if (a.updatedAt) {
+      timeA = Math.floor(new Date(a.updatedAt).getTime() / 1000);
+    }
+    
+    // Obtener timestamp de b
+    let timeB = 0;
+    if (b.lastMessage?.messageTimestamp) {
+      timeB = typeof b.lastMessage.messageTimestamp === 'string'
+        ? parseInt(b.lastMessage.messageTimestamp)
+        : b.lastMessage.messageTimestamp;
+    } else if (b.conversationTimestamp) {
+      timeB = b.conversationTimestamp;
+    } else if (b.updatedAt) {
+      timeB = Math.floor(new Date(b.updatedAt).getTime() / 1000);
+    }
+    
+    // Ordenar de más reciente a más antiguo
     return timeB - timeA;
   });
 }
@@ -241,4 +286,82 @@ export function formatFileSize(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+/**
+ * Deduplicate chats by their 'id' field
+ * Evolution API can return the same chat multiple times with different remoteJid representations
+ * This function keeps the first occurrence of each unique id
+ * @param chats - Array of chats from API
+ * @returns Deduplicated chats array
+ */
+export function deduplicateChatsByID(chats: Chat[]): Chat[] {
+  const seenIds = new Map<string, Chat>();
+  const deduplicated: Chat[] = [];
+  
+  for (const chat of chats) {
+    // Use id if available, otherwise use remoteJid as fallback
+    const chatKey = chat.id || chat.remoteJid;
+    
+    if (chatKey && !seenIds.has(chatKey)) {
+      seenIds.set(chatKey, chat);
+      deduplicated.push(chat);
+    } else if (!chatKey) {
+      // If no id and no remoteJid, include it to avoid data loss
+      deduplicated.push(chat);
+    }
+  }
+  
+  return deduplicated;
+}
+
+/**
+ * Find duplicate chats by id
+ * Useful for debugging Evolution API multi-device issues
+ * @param chats - Array of chats from API
+ * @returns Array of duplicate groups
+ */
+export function findDuplicateChats(chats: Chat[]): Array<Chat[]> {
+  const groups = new Map<string, Chat[]>();
+  
+  for (const chat of chats) {
+    const chatKey = chat.id || chat.remoteJid;
+    
+    if (chatKey) {
+      if (!groups.has(chatKey)) {
+        groups.set(chatKey, []);
+      }
+      groups.get(chatKey)!.push(chat);
+    }
+  }
+  
+  // Return only groups with duplicates
+  return Array.from(groups.values()).filter(group => group.length > 1);
+}
+
+
+/**
+ * Deduplicate messages by key.id to handle Evolution API multi-device behavior
+ * When the same message appears with different remoteJid representations,
+ * keep only one copy identified by the unique key.id
+ * @param messages - Array of messages from API
+ * @returns Deduplicated messages array, keeping first occurrence of each key.id
+ */
+export function deduplicateMessagesByKeyId(messages: Message[]): Message[] {
+  const seenIds = new Set<string>();
+  const deduplicated: Message[] = [];
+  
+  for (const message of messages) {
+    const messageId = message.key?.id;
+    
+    if (messageId && !seenIds.has(messageId)) {
+      seenIds.add(messageId);
+      deduplicated.push(message);
+    } else if (!messageId) {
+      // If no key.id, include it to avoid data loss
+      deduplicated.push(message);
+    }
+  }
+  
+  return deduplicated;
 }

@@ -40,6 +40,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ accounts }) => {
     try {
       const fetchedChats = await client.fetchChats();
       setChats(fetchedChats);
+      // Proporcionar al cliente todos los chats para poder cargar mensajes de variantes multi-device
+      client.setAllChats(fetchedChats);
     } catch (error) {
       console.error('❌ Error cargando chats:', error);
     } finally {

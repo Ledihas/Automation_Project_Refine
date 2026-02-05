@@ -30,8 +30,35 @@ const ConversationList: React.FC<ConversationListProps> = ({
     return displayName.includes(searchText.toLowerCase());
   });
 
+  // Filter to show only @s.whatsapp.net remoteJid (or first variant if no @s.whatsapp.net)
+  const displayedChats = filteredChats.reduce((acc, chat) => {
+    const chatId = chat.id || chat.remoteJid;
+    
+    // Si ya tenemos este chat (por id), no agreguemos duplicados
+    if (acc.some(c => (c.id || c.remoteJid) === chatId)) {
+      return acc;
+    }
+    
+    // Priorizar el que termina en @s.whatsapp.net
+    const variant = filteredChats.find(
+      c => (c.id || c.remoteJid) === chatId && c.remoteJid?.endsWith('@s.whatsapp.net')
+    );
+    
+    if (variant) {
+      acc.push(variant);
+    } else {
+      // Si no hay @s.whatsapp.net, usar el primero disponible
+      const firstVariant = filteredChats.find(c => (c.id || c.remoteJid) === chatId);
+      if (firstVariant) {
+        acc.push(firstVariant);
+      }
+    }
+    
+    return acc;
+  }, [] as Chat[]);
+
   // Sort chats by timestamp
-  const sortedChats = sortChatsByTimestamp(filteredChats);
+  const sortedChats = sortChatsByTimestamp(displayedChats);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -75,9 +102,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
         ) : (
           sortedChats.map((chat) => (
             <ConversationItem
-              key={chat.id}
+              key={chat.remoteJid}
               chat={chat}
-              selected={selectedChat?.id === chat.id}
+              selected={selectedChat?.remoteJid === chat.remoteJid}
               onClick={() => onSelectChat(chat)}
             />
           ))

@@ -89,7 +89,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [chat.id]);
+  }, [chat.remoteJid]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -239,7 +239,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
 
       {/* Message input */}
       <MessageInput
-        chatId={chat.id}
+        chatId={chat.remoteJid}
         chatClient={chatClient}
         onMessageSent={handleMessageSent}
       />

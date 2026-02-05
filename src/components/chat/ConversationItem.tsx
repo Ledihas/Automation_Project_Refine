@@ -4,11 +4,40 @@ import { UserOutlined, TeamOutlined, CheckOutlined } from '@ant-design/icons';
 import type { Chat } from '../../utility/chatTypes';
 import {
   getChatDisplayName,
-  getMessageText,
   formatLastMessageTime,
 } from '../../utility/chatUtils';
 
 const { Text } = Typography;
+
+/**
+ * Extraer texto del mensaje del formato nuevo de Evolution API
+ * @param message - objeto message de lastMessage
+ * @returns string de texto o descripción del tipo
+ */
+function getLastMessageText(message: any): string {
+  if (!message) return 'Mensaje';
+  
+  // Si es un string directo
+  if (typeof message === 'string') {
+    return message;
+  }
+  
+  // Si es un objeto, buscar propiedades de contenido
+  if (typeof message === 'object') {
+    if (message.conversation) return message.conversation;
+    if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
+    if (message.imageMessage) return message.imageMessage.caption || '📷 Imagen';
+    if (message.videoMessage) return message.videoMessage.caption || '🎥 Video';
+    if (message.documentMessage) return `📄 ${message.documentMessage.fileName || 'Documento'}`;
+    if (message.audioMessage) return message.audioMessage.ptt ? '🎤 Audio de voz' : '🎵 Audio';
+    if (message.stickerMessage) return '🎨 Sticker';
+    if (message.locationMessage) return '📍 Ubicación';
+    if (message.contactMessage) return `👤 ${message.contactMessage.displayName}`;
+    if (message.call) return '📞 Llamada';
+  }
+  
+  return 'Mensaje';
+}
 
 interface ConversationItemProps {
   chat: Chat;
@@ -29,12 +58,14 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
   let messageStatus = '';
   
   if (chat.lastMessage) {
-    // Formato nuevo de Evolution API
-    lastMessageText = chat.lastMessage.message || 'Mensaje';
+    // Formato nuevo de Evolution API - procesar message correctamente
+    lastMessageText = getLastMessageText(chat.lastMessage.message);
     
-    // Convertir timestamp string a número
+    // Convertir timestamp a número (puede venir como número o string)
     if (chat.lastMessage.messageTimestamp) {
-      const timestamp = parseInt(chat.lastMessage.messageTimestamp);
+      const timestamp = typeof chat.lastMessage.messageTimestamp === 'string'
+        ? parseInt(chat.lastMessage.messageTimestamp)
+        : chat.lastMessage.messageTimestamp;
       lastMessageTime = formatLastMessageTime(timestamp);
     }
     
@@ -80,7 +111,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
           <Avatar
             size={48}
             src={chat.profilePicUrl || chat.profilePictureUrl}
-            icon={chat.isGroup ? <TeamOutlined /> : <UserOutlined />}
+            icon={(chat.isGroup === true) ? <TeamOutlined /> : <UserOutlined />}
             style={{ backgroundColor: '#25D366', flexShrink: 0 }}
           />
         </Badge>

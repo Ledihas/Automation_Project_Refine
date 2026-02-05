@@ -180,7 +180,7 @@ export default class EvolutionChatClient {
    * that share the same 'id' (handles Evolution API multi-device behavior where the same
    * conversation can appear as @s.whatsapp.net and @lid, etc.)
    */
-  async fetchMessages(chatId: string, limit: number = 50): Promise<Message[]> {
+  async fetchMessages(chatId: string, _limit: number = 50): Promise<Message[]> {
     try {
       console.log('📥 Fetching messages for:', chatId);
       

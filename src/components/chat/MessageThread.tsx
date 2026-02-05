@@ -44,8 +44,12 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     try {
       // Usar remoteJid si está disponible, sino usar id
       const chatId = chat.remoteJid || chat.id;
+      if (!chatId) {
+        console.error('❌ No chat ID available');
+        return;
+      }
       console.log('🔄 Cargando mensajes para:', chatId);
-      const msgs = await chatClient.fetchMessages(chatId, 100);
+      const msgs = await chatClient.fetchMessages(chatId);
       setMessages(msgs);
 
       // Mark as read if there are unread messages
@@ -67,6 +71,10 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     try {
       // Usar remoteJid si está disponible, sino usar id
       const jid = chat.remoteJid || chat.id;
+      if (!jid) {
+        console.error('❌ No JID available');
+        return;
+      }
       const pic = await chatClient.getProfilePicture(jid);
       setProfilePic(pic);
     } catch (error) {

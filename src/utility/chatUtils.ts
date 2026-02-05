@@ -176,8 +176,8 @@ export function getChatDisplayName(chat: Chat): string {
   if (chat.name) {
     return chat.name;
   }
-  // Usar remoteJid si está disponible, sino usar id
-  const jid = chat.remoteJid || chat.id;
+  // Usar remoteJid si está disponible, sino usar id, con fallback a string vacío
+  const jid = chat.remoteJid || chat.id || '';
   return formatPhoneNumber(jid);
 }
 

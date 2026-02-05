@@ -24,7 +24,7 @@ const ContactInfo: React.FC<ContactInfoProps> = ({
   onClose,
 }) => {
   const displayName = getChatDisplayName(chat);
-  const phoneNumber = formatPhoneNumber(chat.id);
+  const phoneNumber = formatPhoneNumber(chat.remoteJid || chat.id || '');
 
   const handleArchiveChat = () => {
     // TODO: Implement archive functionality

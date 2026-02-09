@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # PostgreSQL para Chatwoot
+  chatwoot_postgres:
+    image: postgres:15-alpine
+    container_name: chatwoot_postgres
+    environment:
+      POSTGRES_USER: chatwoot_user
+      POSTGRES_PASSWORD: ${CHATWOOT_DB_PASSWORD:-ChaTw00t_Secure_P@ss123!}
+      POSTGRES_DB: chatwoot_production
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - chatwoot_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432" # Usar puerto diferente al existente (5432, 5433, 5435)
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatwoot_user -d chatwoot_production"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis para Chatwoot
+  chatwoot_redis:
+    image: redis:7-alpine
+    container_name: chatwoot_redis
+    command: redis-server --appendonly yes --requirepass ${CHATWOOT_REDIS_PASSWORD:-R3d1s_P@ss123!}
+    volumes:
+      - chatwoot_redis_data:/data
+    ports:
+      - "6380:6379" # Usar puerto diferente al existente (6379)
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Chatwoot Rails (Aplicación principal)
+  chatwoot_rails:
+    image: chatwoot/chatwoot:latest
+    container_name: chatwoot_rails
+    depends_on:
+      chatwoot_postgres:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_healthy
+    environment:
+      # Base de datos
+      DATABASE_URL: postgresql://chatwoot_user:${CHATWOOT_DB_PASSWORD:-ChaTw00t_Secure_P@ss123!}@chatwoot_postgres:5432/chatwoot_production
+      REDIS_URL: redis://:${CHATWOOT_REDIS_PASSWORD:-R3d1s_P@ss123!}@chatwoot_redis:6379
+      
+      # Secret key
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-change-me-to-a-random-secret-key-base}
+      
+      # URL base (usado para webhooks y CORS)
+      FRONTEND_URL: https://whapii.agentedecargaonline.com
+      
+      # Rack attack (rate limiting)
+      RACK_ATTACK_ENABLED: "false"
+      
+      # Logs
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_ENV: production
+      
+      # SMTP (si tienes correo configurado)
+      SMTP_ADDRESS: ${SMTP_ADDRESS:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTHENTICATION: plain
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      
+      # Sender email
+      MAILER_SENDER_EMAIL: ${MAILER_SENDER_EMAIL:-noreply@chatwoot.com}
+    
+    ports:
+      - "3211:3000" # Puerto interno para Chatwoot (no expuesto al host directo)
+    
+    networks:
+      - app_network
+    
+    volumes:
+      - chatwoot_storage:/app/storage
+      - chatwoot_tmp:/app/tmp
+    
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health_check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    restart: unless-stopped
+    
+    # Comando para ejecutar migraciones
+    command: >
+      bash -c "
+      echo '🔄 Running database migrations...' &&
+      bundle exec rake db:prepare &&
+      echo '✅ Migrations completed' &&
+      bundle exec rails s -b 0.0.0.0 -p 3000
+      "
+
+  # Chatwoot Sidekiq (Background jobs)
+  chatwoot_sidekiq:
+    image: chatwoot/chatwoot:latest
+    container_name: chatwoot_sidekiq
+    depends_on:
+      chatwoot_postgres:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_healthy
+    
+    environment:
+      # Base de datos
+      DATABASE_URL: postgresql://chatwoot_user:${CHATWOOT_DB_PASSWORD:-ChaTw00t_Secure_P@ss123!}@chatwoot_postgres:5432/chatwoot_production
+      REDIS_URL: redis://:${CHATWOOT_REDIS_PASSWORD:-R3d1s_P@ss123!}@chatwoot_redis:6379
+      
+      # Secret key
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-change-me-to-a-random-secret-key-base}
+      
+      # Logs
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_ENV: production
+    
+    networks:
+      - app_network
+    
+    volumes:
+      - chatwoot_storage:/app/storage
+      - chatwoot_tmp:/app/tmp
+    
+    restart: unless-stopped
+    
+    command: bundle exec sidekiq -c 5 -v
+
+volumes:
+  chatwoot_postgres_data:
+    driver: local
+  chatwoot_redis_data:
+    driver: local
+  chatwoot_storage:
+    driver: local
+  chatwoot_tmp:
+    driver: local
+
+networks:
+  app_network:
+    external: true # Usar red existente

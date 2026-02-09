@@ -200,6 +200,16 @@ export const InstanceManager: React.FC = () => {
 
   const handleNextStep = () => {
     if (currentStep === 0 && (!newInstanceName || nameError)) return;
+    
+    // Validar Chatwoot es OBLIGATORIO en Step 1 (paso 2)
+    if (currentStep === 1) {
+      const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
+      if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
+        notify.error('Chatwoot incompleto', 'Debes configurar la URL, Account ID y Token de Chatwoot');
+        return;
+      }
+    }
+    
     setCurrentStep(currentStep + 1);
   };
 
@@ -219,14 +229,25 @@ export const InstanceManager: React.FC = () => {
     try {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
-      // Usar URL de Chatwoot del formulario, o la por defecto si no se especificó
+      // ============================================
+      // VALIDAR: Chatwoot es OBLIGATORIO
+      // ============================================
       const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
+      
+      if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
+        setCreating(false);
+        notify.error(
+          'Chatwoot requerido',
+          'URL, Account ID y Token de Chatwoot son obligatorios. Por favor completa todos los campos.'
+        );
+        return;
+      }
 
-      console.log('🚀 Creating instance with Chatwoot config:', {
+      console.log('🚀 Creating instance with MANDATORY Chatwoot config:', {
         instanceName: fullInstanceName,
-        chatwootAccountId: chatwootConfig.chatwoot_account_id || 'Not configured',
+        chatwootAccountId: chatwootConfig.chatwoot_account_id,
         chatwootToken: chatwootConfig.chatwoot_token ? '✅ PRESENTE' : '❌ AUSENTE',
-        chatwootUrl: chatwootUrl || '❌ NO CONFIGURADA',
+        chatwootUrl: chatwootUrl,
       });
 
       // Build Evolution API request body
@@ -246,35 +267,30 @@ export const InstanceManager: React.FC = () => {
       };
 
       // ============================================
-      // CRÍTICO: Agregar parámetros de Chatwoot
+      // SIEMPRE AGREGAR parámetros de Chatwoot
+      // (Ya fueron validados arriba)
       // ============================================
-      const hasChatwootConfig = chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token;
+      console.log('✅ Agregando configuración Chatwoot OBLIGATORIA al payload');
       
-      if (hasChatwootConfig) {
-        console.log('✅ Agregando configuración Chatwoot al payload');
-        
-        // Asegurar que la URL no tenga / al final
-        const cleanChatwootUrl = chatwootUrl.replace(/\/$/, '');
-        
-        evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
-        evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
-        evolutionBody.chatwootUrl = cleanChatwootUrl;
-        evolutionBody.chatwootAutoCreate = true;
-        evolutionBody.chatwootSignMsg = chatwootConfig.chatwoot_sign_msg;
-        evolutionBody.chatwootReopenConversation = chatwootConfig.chatwoot_reopen_conversation;
-        evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending;
-        evolutionBody.chatwootNameInbox = chatwootConfig.chatwoot_name_inbox || fullInstanceName;
-        evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts;
-        evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts;
-        evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages;
-        evolutionBody.chatwootDaysLimitImportMessages = chatwootConfig.chatwoot_days_limit_import;
-        evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization;
-        evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
-        
-        console.log('📤 Payload CON Chatwoot completo');
-      } else {
-        console.log('⚠️ Creando instancia SIN Chatwoot (falta accountId o token)');
-      }
+      // Asegurar que la URL no tenga / al final
+      const cleanChatwootUrl = chatwootUrl.replace(/\/$/, '');
+      
+      evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
+      evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
+      evolutionBody.chatwootUrl = cleanChatwootUrl;
+      evolutionBody.chatwootAutoCreate = true;
+      evolutionBody.chatwootSignMsg = chatwootConfig.chatwoot_sign_msg;
+      evolutionBody.chatwootReopenConversation = chatwootConfig.chatwoot_reopen_conversation;
+      evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending;
+      evolutionBody.chatwootNameInbox = chatwootConfig.chatwoot_name_inbox || fullInstanceName;
+      evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts;
+      evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts;
+      evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages;
+      evolutionBody.chatwootDaysLimitImportMessages = chatwootConfig.chatwoot_days_limit_import;
+      evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization;
+      evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
+      
+      console.log('📤 Payload CON Chatwoot OBLIGATORIO completo');
 
       // Log full payload for debugging (ocultar token)
       console.log('📤 PAYLOAD COMPLETO a EvolutionAPI:', JSON.stringify({
@@ -473,12 +489,12 @@ export const InstanceManager: React.FC = () => {
     </Form>
   );
 
-  // Step 2: Chatwoot Configuration
+  // Step 2: Chatwoot Configuration (MANDATORY)
   const renderStep2 = () => (
     <Form layout="vertical">
-      <div style={{ marginBottom: '16px' }}>
-        <Text type="secondary">
-          Configura la integración con Chatwoot (opcional). Si no deseas integrar Chatwoot, puedes <strong color='red'>OMITIR ÉSTOS CAMPOS.</strong>
+      <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(37, 211, 102, 0.08)', borderRadius: 8, border: '1px solid rgba(37, 211, 102, 0.2)' }}>
+        <Text style={{ color: '#128C7E' }}>
+          <strong>⚠️ Chatwoot es obligatorio</strong> para esta instancia. Completa todos los campos requeridos:
         </Text>
       </div>
 
@@ -486,9 +502,12 @@ export const InstanceManager: React.FC = () => {
         label={
           <span>
             <LinkOutlined style={{ marginRight: 6, color: '#34B7F1' }} />
-            URL de Chatwoot
+            URL de Chatwoot <span style={{ color: '#ff4d4f' }}>*</span>
           </span>
         }
+        required
+        validateStatus={!chatwootConfig.chatwoot_url && !defaultChatwootUrl ? 'error' : ''}
+        help={!chatwootConfig.chatwoot_url && !defaultChatwootUrl ? 'URL es requerida' : ''}
       >
         <Input
           placeholder={defaultChatwootUrl || "https://tu-chatwoot.com"}
@@ -498,23 +517,41 @@ export const InstanceManager: React.FC = () => {
         />
         {defaultChatwootUrl && !chatwootConfig.chatwoot_url && (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Por defecto: {defaultChatwootUrl}
+            Se usará por defecto: {defaultChatwootUrl}
           </Text>
         )}
       </Form.Item>
 
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item label="Account ID">
+          <Form.Item 
+            label={
+              <span>
+                Account ID <span style={{ color: '#ff4d4f' }}>*</span>
+              </span>
+            }
+            required
+            validateStatus={!chatwootConfig.chatwoot_account_id ? 'error' : ''}
+            help={!chatwootConfig.chatwoot_account_id ? 'Account ID es requerido' : ''}
+          >
             <Input
-              placeholder="ID de cuenta Chatwoot"
+              placeholder="Ej: 1"
               value={chatwootConfig.chatwoot_account_id}
               onChange={(e) => updateChatwootConfig('chatwoot_account_id', e.target.value)}
             />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="Token de API">
+          <Form.Item 
+            label={
+              <span>
+                Token de API <span style={{ color: '#ff4d4f' }}>*</span>
+              </span>
+            }
+            required
+            validateStatus={!chatwootConfig.chatwoot_token ? 'error' : ''}
+            help={!chatwootConfig.chatwoot_token ? 'Token es requerido' : ''}
+          >
             <Input.Password
               placeholder="Token de acceso"
               value={chatwootConfig.chatwoot_token}
@@ -665,17 +702,17 @@ export const InstanceManager: React.FC = () => {
         </div>
       </Card>
 
-      {chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token ? (
+      {(chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token) || (defaultChatwootUrl && chatwootConfig.chatwoot_account_id && chatwootConfig.chatwoot_token) ? (
         <Card 
           size="small" 
-          title={<><ApiOutlined style={{ marginRight: 8, color: '#34B7F1' }} />Chatwoot</>}
-          style={{ marginBottom: 16, borderRadius: 12 }}
+          title={<><ApiOutlined style={{ marginRight: 8, color: '#34B7F1' }} />✅ Chatwoot Configurado</>}
+          style={{ marginBottom: 16, borderRadius: 12, border: '1px solid rgba(37, 211, 102, 0.3)' }}
         >
           <Row gutter={[8, 12]}>
             <Col span={12}><Text type="secondary">URL:</Text></Col>
             <Col span={12}>
               <Text strong style={{ wordBreak: 'break-all' }}>
-                {chatwootConfig.chatwoot_url || defaultChatwootUrl || 'No configurada'}
+                {chatwootConfig.chatwoot_url || defaultChatwootUrl || 'Auto-configurada'}
               </Text>
             </Col>
             
@@ -695,12 +732,12 @@ export const InstanceManager: React.FC = () => {
           style={{ 
             marginBottom: 16, 
             borderRadius: 12,
-            backgroundColor: 'rgba(250, 173, 20, 0.08)',
-            border: '1px solid rgba(250, 173, 20, 0.3)'
+            backgroundColor: 'rgba(255, 77, 79, 0.08)',
+            border: '1px solid rgba(255, 77, 79, 0.3)'
           }}
         >
-          <InfoCircleOutlined style={{ color: '#faad14', marginRight: 8 }} />
-          <Text style={{ color: '#d48806' }}>Sin integración Chatwoot - Podrás configurarlo después</Text>
+          <ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+          <Text style={{ color: '#ff4d4f' }}><strong>Chatwoot REQUERIDO</strong> - Completa todos los campos obligatorios antes de continuar</Text>
         </Card>
       )}
 
@@ -915,7 +952,14 @@ export const InstanceManager: React.FC = () => {
                   key="next"
                   type="primary"
                   onClick={handleNextStep}
-                  disabled={currentStep === 0 && (!newInstanceName || !!nameError)}
+                  disabled={(() => {
+                    if (currentStep === 0) return !newInstanceName || !!nameError;
+                    if (currentStep === 1) {
+                      const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
+                      return !chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token;
+                    }
+                    return false;
+                  })()}
                   size="large"
                 >
                   Siguiente →

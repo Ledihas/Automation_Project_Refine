@@ -133,8 +133,7 @@ export interface WhatsAppAccount {
   status: string;
   user_id: string;
   created_at: string;
-  chatwoot_account_id?: string;
-  chatwoot_name_inbox?: string;
+  // ⚠️ Chatwoot NO se guarda en Appwrite - es 100% EvolutionAPI
 }
 
 // API Response types (Evolution API v2 - Nueva estructura)

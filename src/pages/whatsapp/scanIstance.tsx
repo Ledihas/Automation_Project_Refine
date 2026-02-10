@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Typography, Button, Spin, Steps, Badge } from "antd";
+import { Card, Typography, Button, Spin, Steps } from "antd";
 import { 
   WhatsAppOutlined, 
   ArrowLeftOutlined, 
@@ -8,8 +8,7 @@ import {
   CheckCircleOutlined, 
   MobileOutlined, 
   ScanOutlined,
-  ReloadOutlined,
-  ApiOutlined
+  ReloadOutlined
 } from "@ant-design/icons";
 import QRCode from "qrcode";
 import { ConnectionSuccess } from "../../components/ConnectionSuccess";
@@ -27,9 +26,7 @@ const COLLECTION_ID = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
 interface InstanceData {
   $id: string;
   instance_name: string;
-  chatwoot_account_id?: string;
-  chatwoot_token?: string;
-  chatwoot_name_inbox?: string;
+  // ⚠️ Chatwoot NO en Appwrite - solo en EvolutionAPI
 }
 
 export const ScanInstance: React.FC = () => {
@@ -73,7 +70,7 @@ export const ScanInstance: React.FC = () => {
         console.log('📄 Documento recuperado:', {
           id: doc.$id,
           name: doc.instance_name,
-          hasChatwoot: !!(doc.chatwoot_account_id && doc.chatwoot_token)
+          note: 'Chatwoot manejado por EvolutionAPI'
         });
 
         setInstanceData(doc);
@@ -269,7 +266,7 @@ export const ScanInstance: React.FC = () => {
   };
 
   const statusInfo = getStatusInfo();
-  const hasChatwoot = instanceData?.chatwoot_account_id && instanceData?.chatwoot_token;
+  // Chatwoot siempre está integrado (EvolutionAPI lo maneja) - badge no necesario
 
   return (
     <div style={{
@@ -313,28 +310,6 @@ export const ScanInstance: React.FC = () => {
           <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
             {instanceName}
           </Text>
-          
-          {/* Chatwoot badge */}
-          {hasChatwoot && (
-            <div style={{ marginTop: 12 }}>
-              <Badge 
-                count={
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    padding: '4px 12px',
-                    borderRadius: 12
-                  }}>
-                    <ApiOutlined style={{ color: '#fff', marginRight: 6 }} />
-                    <span style={{ color: '#fff', fontSize: 12 }}>
-                      Chatwoot: {instanceData?.chatwoot_name_inbox || 'Configurado'}
-                    </span>
-                  </div>
-                }
-              />
-            </div>
-          )}
         </div>
 
         {/* QR Section */}

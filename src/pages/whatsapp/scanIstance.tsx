@@ -15,6 +15,7 @@ import { ConnectionSuccess } from "../../components/ConnectionSuccess";
 import { Databases, Query } from "@refinedev/appwrite";
 import { appwriteClient } from "../../utility/appwriteClient";
 import { notify } from "../../utility/notifications";
+import { configureChatwoot } from "../../utility/chatwootIntegration";
 
 const { Title, Text } = Typography;
 
@@ -23,10 +24,15 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const COLLECTION_ID = import.meta.env.VITE_APPWRITE_WHATSAPP_COLLECTION_ID;
 
+// Chatwoot configuration from environment
+const CHATWOOT_URL = import.meta.env.VITE_CHATWOOT_URL;
+const CHATWOOT_ACCOUNT_ID = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID;
+const CHATWOOT_TOKEN = import.meta.env.VITE_CHATWOOT_TOKEN;
+const CHATWOOT_ENABLED = import.meta.env.VITE_CHATWOOT_ENABLED === 'true';
+
 interface InstanceData {
   $id: string;
   instance_name: string;
-  // ⚠️ Chatwoot NO en Appwrite - solo en EvolutionAPI
 }
 
 export const ScanInstance: React.FC = () => {
@@ -99,6 +105,7 @@ export const ScanInstance: React.FC = () => {
   useEffect(() => {
     if (isConnected && !showSuccessMessage) {
       updateInstanceStatus(instanceName!);
+      configureChatwootIfNeeded();
       notify.connectionSuccess(instanceName!);
       setTimeout(() => setShowSuccessMessage(true), 2000);
     }
@@ -126,6 +133,62 @@ export const ScanInstance: React.FC = () => {
       }
     } catch (err) {
       console.error('Error updating instance status:', err);
+    }
+  };
+
+  // ============================================
+  // Configurar Chatwoot después de la conexión
+  // (Fallback si no se configuró en la creación)
+  // ============================================
+  const configureChatwootIfNeeded = async () => {
+    try {
+      if (!CHATWOOT_ENABLED) {
+        console.log('ℹ️ Chatwoot deshabilitado en variables de entorno');
+        return;
+      }
+
+      if (!CHATWOOT_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_TOKEN) {
+        console.warn('⚠️ Faltan credenciales de Chatwoot en variables de entorno');
+        console.warn('   URL:', CHATWOOT_URL ? '✅' : '❌');
+        console.warn('   Account ID:', CHATWOOT_ACCOUNT_ID ? '✅' : '❌');
+        console.warn('   Token:', CHATWOOT_TOKEN ? '✅' : '❌');
+        return;
+      }
+
+      console.log('🔧 Intentando configurar Chatwoot para:', instanceName);
+
+      const config = {
+        enabled: true,
+        url: CHATWOOT_URL,
+        accountId: CHATWOOT_ACCOUNT_ID,
+        token: CHATWOOT_TOKEN,
+        signMsg: true,
+        reopenConversation: true,
+        conversationPending: false,
+        nameInbox: instanceName || 'WhatsApp Assistant',
+        mergeBrazilContacts: true,
+        importContacts: true,
+        importMessages: true,
+        daysLimitImport: 3,
+        organization: 'ACO Assistant',
+      };
+
+      const success = await configureChatwoot(
+        instanceName!,
+        config,
+        SERVER_URL,
+        API_KEY
+      );
+
+      if (success) {
+        console.log('✅ Chatwoot configurado exitosamente después de la conexión');
+      } else {
+        console.warn('⚠️ Chatwoot no se pudo configurar, pero la instancia está conectada');
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error en configuración de Chatwoot:', error);
+      console.warn('⚠️ Continuando sin Chatwoot... La instancia está conectada');
     }
   };
 

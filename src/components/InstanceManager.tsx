@@ -12,6 +12,48 @@ import { text } from 'stream/consumers';
 
 const { Title, Text } = Typography;
 
+/**
+ * ============================================
+ * ESTRUCTURA DEL PAYLOAD PARA EVOLUTION API
+ * ============================================
+ * 
+ * El payload enviado a EvolutionAPI debe incluir:
+ * 
+ * {
+ *   "instanceName": "string",          // Nombre único de la instancia
+ *   "integration": "WHATSAPP-BAILEYS", // Tipo de integración
+ *   "qrcode": true,                    // Habilitar QR
+ *   "alwaysOnline": true,              // Siempre en línea
+ *   "groupsIgnore": true,              // Ignorar grupos
+ *   "webhook": {
+ *     "url": "string",                 // URL del webhook
+ *     "events": ["MESSAGES_UPSERT", ...] // Eventos a escuchar
+ *   },
+ *   "chatwoot": {
+ *     "enabled": true,
+ *     "url": "https://chatwoot.example.com", // URL base de Chatwoot
+ *     "accountId": 1,                        // ID de cuenta (NÚMERO)
+ *     "token": "string",                     // Token de API
+ *     "nameInbox": "string",                 // Nombre del inbox
+ *     "signMsg": true,                       // Firmar mensajes
+ *     "reopenConversation": true,            // Reabrir conversaciones
+ *     "conversationPending": false,          // Crear como pendiente
+ *     "importContacts": true,                // Importar contactos
+ *     "importMessages": true,                // Importar mensajes
+ *     "daysLimitImportMessages": 3,          // Días para importación
+ *     "mergeBrazilContacts": true,           // Unificar contactos Brasil
+ *     "organization": "string",              // Nombre de organización
+ *     "logo": "string"                       // URL del logo
+ *   }
+ * }
+ * 
+ * IMPORTANTE:
+ * - accountId debe ser un NÚMERO, no string
+ * - token debe ser válido y tener permisos de API
+ * - url debe ser accesible desde EvolutionAPI
+ * - Todos los campos de chatwoot son OBLIGATORIOS
+ */
+
 // Chatwoot configuration interface
 export interface ChatwootConfig {
   chatwoot_url: string;
@@ -53,19 +95,6 @@ interface Instance {
   user_id: string;
   created_at: string;
   $createdAt: string;
-  chatwoot_account_id?: string;
-  chatwoot_name_inbox?: string;
-  chatwoot_url?: string;
-  chatwoot_token?: string;
-  chatwoot_sign_msg?: boolean;
-  chatwoot_reopen_conversation?: boolean;
-  chatwoot_conversation_pending?: boolean;
-  chatwoot_merge_brazil_contacts?: boolean;
-  chatwoot_import_contacts?: boolean;
-  chatwoot_import_messages?: boolean;
-  chatwoot_days_limit_import?: number;
-  chatwoot_organization?: string;
-  chatwoot_logo?: string;
 }
 
 export const InstanceManager: React.FC = () => {
@@ -173,6 +202,73 @@ export const InstanceManager: React.FC = () => {
     });
   };
 
+  /**
+   * Validar configuración de Chatwoot
+   * ============================================
+   * Verifica que todos los campos requeridos de Chatwoot estén presentes y sean válidos
+   * @returns {string|null} Mensaje de error si la validación falla, null si es válida
+   */
+  const validateChatwootConfig = (config: ChatwootConfig): string | null => {
+    const url = config.chatwoot_url || defaultChatwootUrl;
+    
+    // Log de validación
+    console.log('🔍 Validando Chatwoot Config:');
+    console.log(`  URL: ${url}`);
+    console.log(`  Account ID: ${config.chatwoot_account_id}`);
+    console.log(`  Token presente: ${!!config.chatwoot_token}`);
+    
+    // Validar URL
+    if (!url || url.trim() === '') {
+      console.error('❌ URL de Chatwoot vacía');
+      return 'URL de Chatwoot es requerida';
+    }
+    
+    // Validar que sea una URL válida
+    try {
+      new URL(url);
+      console.log('✅ URL de Chatwoot válida');
+    } catch (e) {
+      console.error('❌ URL de Chatwoot inválida:', url);
+      return 'URL de Chatwoot no es válida (ej: https://chatwoot.example.com)';
+    }
+    
+    // Validar Account ID
+    if (!config.chatwoot_account_id || config.chatwoot_account_id.trim() === '') {
+      console.error('❌ Account ID de Chatwoot vacío');
+      return 'Account ID de Chatwoot es requerido';
+    }
+    
+    // Validar que Account ID sea un número
+    const accountId = parseInt(config.chatwoot_account_id, 10);
+    if (isNaN(accountId) || accountId < 1) {
+      console.error('❌ Account ID inválido:', config.chatwoot_account_id);
+      return 'Account ID debe ser un número válido (mayor a 0)';
+    }
+    console.log(`✅ Account ID válido: ${accountId}`);
+    
+    // Validar Token
+    if (!config.chatwoot_token || config.chatwoot_token.trim() === '') {
+      console.error('❌ Token de API de Chatwoot vacío');
+      return 'Token de API de Chatwoot es requerido';
+    }
+    
+    // Validar longitud mínima del token (tokens típicos tienen al menos 20 caracteres)
+    if (config.chatwoot_token.length < 10) {
+      console.error('❌ Token muy corto:', config.chatwoot_token.length, 'caracteres');
+      return 'Token de API parece muy corto (mínimo 10 caracteres)';
+    }
+    console.log(`✅ Token de API válido (${config.chatwoot_token.length} caracteres)`);
+    
+    // Validar Inbox Name (debe ser válido si se proporciona)
+    if (config.chatwoot_name_inbox && config.chatwoot_name_inbox.length > 100) {
+      console.error('❌ Nombre de Inbox muy largo:', config.chatwoot_name_inbox.length);
+      return 'Nombre de Inbox no puede exceder 100 caracteres';
+    }
+    
+    console.log('✅ Todas las validaciones de Chatwoot pasaron correctamente');
+    return null; // Validación exitosa
+  };
+
   const handleOpenModal = () => {
     setShowCreateModal(true);
     setCurrentStep(0);
@@ -214,11 +310,11 @@ export const InstanceManager: React.FC = () => {
     
     // Validar Chatwoot es OBLIGATORIO en Step 1 (paso 2)
     if (currentStep === 1) {
-      const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
-      if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
+      const chatwootError = validateChatwootConfig(chatwootConfig);
+      if (chatwootError) {
         notify.error({
-          message: 'Chatwoot incompleto',
-          description: 'Debes configurar la URL, Account ID y Token de Chatwoot'
+          message: 'Configuración de Chatwoot incompleta',
+          description: chatwootError
         });
         return;
       }
@@ -244,77 +340,80 @@ export const InstanceManager: React.FC = () => {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
       // ============================================
-      // VALIDAR: Chatwoot es OBLIGATORIO
+      // VALIDAR: Chatwoot usando la función
       // ============================================
-      const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
-      const accountId = parseInt(chatwootConfig.chatwoot_account_id, 10);
-      
-      if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
+      const chatwootError = validateChatwootConfig(chatwootConfig);
+      if (chatwootError) {
         setCreating(false);
         notify.error({
-          message: 'Chatwoot requerido',
-          description: 'URL, Account ID y Token de Chatwoot son obligatorios. Por favor completa todos los campos.'
+          message: '❌ Configuración de Chatwoot inválida',
+          description: chatwootError
         });
         return;
       }
 
-      // Validar que Account ID sea un número válido
-      if (isNaN(accountId) || accountId < 1) {
-        setCreating(false);
-        notify.error({
-          message: 'Account ID inválido',
-          description: 'Account ID debe ser un número mayor a 0.'
-        });
-        return;
-      }
+      console.log('🚀 Creando instancia con nombre:', fullInstanceName);
+      console.log('📋 Incluyendo integración de Chatwoot en el payload');
 
-      console.log('🚀 Creating instance with MANDATORY Chatwoot config:', {
-        instanceName: fullInstanceName,
-        chatwootAccountId: accountId,
-        chatwootToken: chatwootConfig.chatwoot_token ? '✅ PRESENTE' : '❌ AUSENTE',
-        chatwootUrl: chatwootUrl,
-      });
-
-      // Build Evolution API request body - ESTRUCTURA CORRECTA v2
-      // Asegurar que la URL no tenga / al final
-      const cleanChatwootUrl = chatwootUrl.replace(/\/$/, '');
-      
+      // ============================================
+      // BUILD EVOLUTION API PAYLOAD - CON CHATWOOT
+      // ============================================
       const evolutionBody: any = {
         instanceName: fullInstanceName,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
+        alwaysOnline: true,
+        groupsIgnore: true,
         webhook: {
           url: botacoWebhookUrl,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
-        },
-        chatwoot: {
-          enabled: true,
-          url: cleanChatwootUrl,
-          accountId: accountId,  // ✅ Ya validado y convertido a número
-          token: chatwootConfig.chatwoot_token,
-          nameInbox: chatwootConfig.chatwoot_name_inbox || fullInstanceName,
-          signMsg: chatwootConfig.chatwoot_sign_msg,
-          reopenConversation: chatwootConfig.chatwoot_reopen_conversation,
-          conversationPending: chatwootConfig.chatwoot_conversation_pending,
-          importContacts: chatwootConfig.chatwoot_import_contacts,
-          importMessages: chatwootConfig.chatwoot_import_messages,
-          daysLimitImportMessages: chatwootConfig.chatwoot_days_limit_import,
-          mergeBrazilContacts: chatwootConfig.chatwoot_merge_brazil_contacts,
-          organization: chatwootConfig.chatwoot_organization
+          byEvents: false,
+          base64: true,
+          events: ['MESSAGES_UPSERT']
         }
       };
-      
-      console.log('✅ Payload armado con estructura CORRECTA (Chatwoot anidado)');
 
-      // Log full payload for debugging (ocultar token)
-      const payloadDebug = {
-        ...evolutionBody,
-        chatwoot: {
-          ...evolutionBody.chatwoot,
-          token: evolutionBody.chatwoot?.token ? '[OCULTO]' : undefined
-        }
-      };
-      console.log('📤 PAYLOAD COMPLETO a EvolutionAPI:', JSON.stringify(payloadDebug, null, 2));
+      // ✅ AGREGAR CAMPOS DE CHATWOOT SI ESTÁ HABILITADO
+      if (chatwootConfig.chatwoot_url && 
+          chatwootConfig.chatwoot_account_id && 
+          chatwootConfig.chatwoot_token) {
+        
+        console.log('✅ Agregando campos de Chatwoot al payload');
+        
+        // Validar URL (sin "/" al final)
+        const cleanChatwootUrl = chatwootConfig.chatwoot_url.replace(/\/$/, '');
+        
+        // ⚠️ IMPORTANTE: Los campos van directamente en el payload raíz
+        // NO en un objeto "chatwoot" anidado
+        evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
+        evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
+        evolutionBody.chatwootUrl = cleanChatwootUrl;
+        evolutionBody.chatwootSignMsg = chatwootConfig.chatwoot_sign_msg ?? true;
+        evolutionBody.chatwootReopenConversation = chatwootConfig.chatwoot_reopen_conversation ?? true;
+        evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending ?? false;
+        evolutionBody.chatwootNameInbox = chatwootConfig.chatwoot_name_inbox || fullInstanceName;
+        evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts ?? true;
+        evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts ?? true;
+        evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages ?? true;
+        evolutionBody.chatwootDaysLimitImportMessages = chatwootConfig.chatwoot_days_limit_import ?? 2;
+        evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization || 'ACO Assistant';
+        evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
+        
+        console.log('✅ Campos de Chatwoot agregados al payload');
+      } else {
+        console.log('⏭️ Chatwoot no configurado completamente');
+      }
+      
+      console.log('✅ Payload estructurado COMPLETO');
+      console.log('📤 PAYLOAD a EvolutionAPI:', JSON.stringify(evolutionBody, null, 2));
+      
+      // ============================================
+      // LOGGING DETALLADO PRE-ENVÍO
+      // ============================================
+      console.log('🔍 DETALLES PRE-ENVÍO:');
+      console.log(`  📱 Instance Name: ${fullInstanceName}`);
+      console.log(`  📍 Server URL: ${serverUrl}`);
+      console.log(`  🔐 API Key: ${apiKey ? `✅ PRESENTE` : '❌ AUSENTE'}`);
+      console.log(`  🔧 Chatwoot: ${evolutionBody.chatwootAccountId ? '✅ HABILITADO' : '❌ DESHABILITADO'}`);
 
       const evolutionResponse = await fetch(`${serverUrl}/instance/create`, {
         method: 'POST',
@@ -326,25 +425,51 @@ export const InstanceManager: React.FC = () => {
       });
 
       const responseText = await evolutionResponse.text();
-      console.log('📥 Evolution API response status:', evolutionResponse.status);
-      console.log('📥 Evolution API response body:', responseText.substring(0, 500));
+      console.log('📥 EvolutionAPI Response Status:', evolutionResponse.status);
+      console.log('📥 EvolutionAPI Response Headers:', Object.fromEntries(evolutionResponse.headers));
+      console.log('📥 EvolutionAPI Response Body (first 1000 chars):', responseText.substring(0, 1000));
 
       if (!evolutionResponse.ok) {
-        throw new Error(`Evolution API error (${evolutionResponse.status}): ${responseText || 'Sin respuesta'}`);
+        // Intentar parsear la respuesta de error para obtener detalles de Chatwoot
+        let errorDetails = '';
+        try {
+          const errorData = JSON.parse(responseText);
+          if (errorData.message) {
+            errorDetails = errorData.message;
+          }
+          if (errorData.chatwoot) {
+            errorDetails += ` | Chatwoot: ${JSON.stringify(errorData.chatwoot)}`;
+          }
+          console.error('❌ ERROR DATA PARSED:', errorData);
+        } catch (e) {
+          errorDetails = responseText || 'Sin detalles';
+          console.error('❌ ERROR (raw):', responseText);
+        }
+        
+        throw new Error(`Evolution API error (${evolutionResponse.status}): ${errorDetails || 'Sin respuesta'}`);
       }
 
       // Parse response
       let evolutionData;
       try {
         evolutionData = JSON.parse(responseText);
-        console.log('✅ Instancia creada en EvolutionAPI:', evolutionData);
+        console.log('✅ Response Parsed Successfully');
+        console.log('✅ Instancia creada en EvolutionAPI:', JSON.stringify(evolutionData, null, 2));
+        
+        // Verificar si la instancia tiene estado conectado
+        if (evolutionData.instance?.status === 'connected') {
+          console.log('🟢 Instancia ya está CONECTADA en EvolutionAPI');
+        } else {
+          console.log('🟡 Instancia en estado PENDIENTE, esperando conexión QR');
+        }
       } catch (e) {
+        console.error('❌ Error parsing Evolution API response:', e);
         throw new Error(`Respuesta inválida de Evolution API: ${responseText.substring(0, 100)}`);
       }
 
       // ============================================
-      // GUARDAR EN APPWRITE - Solo datos esenciales
-      // (Chatwoot es manejado 100% por EvolutionAPI)
+      // GUARDAR EN APPWRITE - Datos esenciales únicamente
+      // (Chatwoot se maneja 100% en EvolutionAPI)
       // ============================================
       const appwriteDoc = await databases.createDocument(
         databaseId,
@@ -360,6 +485,10 @@ export const InstanceManager: React.FC = () => {
       );
 
       console.log('✅ Documento guardado en Appwrite:', appwriteDoc.$id);
+      
+      if (evolutionBody.chatwootAccountId) {
+        console.log('✅ Chatwoot configurado en la creación de instancia');
+      }
 
       // Notificar respuesta de Evolution API
       const evolutionInfo = evolutionData?.instance || evolutionData;
@@ -368,7 +497,12 @@ export const InstanceManager: React.FC = () => {
         description: (
           <div>
             <p><strong>{fullInstanceName}</strong></p>
-            <p>✅ Integración Chatwoot activada</p>
+            <p>📱 Escanea el QR para conectar tu WhatsApp</p>
+            {evolutionBody.chatwootAccountId && (
+              <p style={{ fontSize: 12, color: '#25D366', marginTop: 8, fontWeight: 500 }}>
+                ✅ Integración de Chatwoot configurada
+              </p>
+            )}
             {evolutionInfo?.status && <p>Estado: {evolutionInfo.status}</p>}
             {evolutionInfo?.instanceId && <p>ID: {evolutionInfo.instanceId}</p>}
           </div>
@@ -381,9 +515,31 @@ export const InstanceManager: React.FC = () => {
       handleCloseModal();
       navigate(`/whatsapp/scan/${fullInstanceName}`);
     } catch (error) {
-      console.error('Error creating instance:', error);
+      console.error('❌ Error creating instance:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      notify.apiError('crear instancia', errorMessage);
+      
+      // Detectar si el error es relacionado con Chatwoot
+      const isChatwootError = errorMessage.toLowerCase().includes('chatwoot');
+      
+      notify.error({
+        message: isChatwootError ? '❌ Error en Chatwoot' : '❌ Error al crear instancia',
+        description: (
+          <div>
+            <p>{errorMessage}</p>
+            {isChatwootError && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                <p>⚠️ Verifica:</p>
+                <ul style={{ paddingLeft: 16, margin: '4px 0' }}>
+                  <li>URL de Chatwoot correcta y accesible</li>
+                  <li>Account ID válido (número)</li>
+                  <li>Token de API válido y con permisos suficientes</li>
+                  <li>Red/conectividad entre Evolution API y Chatwoot</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )
+      });
     } finally {
       setCreating(false);
     }
@@ -877,26 +1033,9 @@ export const InstanceManager: React.FC = () => {
                     </Text>
                   </div>
                 </div>
-
                 {/* Status badges */}
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ marginBottom: 8 }}>{getStatusBadge(instance.status)}</div>
-                  {instance.chatwoot_account_id && (
-                    <div style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      padding: '4px 12px', 
-                      backgroundColor: 'rgba(52, 183, 241, 0.1)', 
-                      borderRadius: '16px',
-                      border: '1px solid rgba(52, 183, 241, 0.3)',
-                      marginTop: 8
-                    }}>
-                      <ApiOutlined style={{ color: '#34B7F1', marginRight: 6 }} />
-                      <span style={{ color: '#34B7F1', fontWeight: 500, fontSize: 12 }}>
-                        {instance.chatwoot_name_inbox || 'Chatwoot'}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Actions */}

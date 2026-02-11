@@ -53,7 +53,19 @@ interface Instance {
   user_id: string;
   created_at: string;
   $createdAt: string;
-  // ⚠️ Chatwoot NO en Appwrite - solo en EvolutionAPI
+  chatwoot_account_id?: string;
+  chatwoot_name_inbox?: string;
+  chatwoot_url?: string;
+  chatwoot_token?: string;
+  chatwoot_sign_msg?: boolean;
+  chatwoot_reopen_conversation?: boolean;
+  chatwoot_conversation_pending?: boolean;
+  chatwoot_merge_brazil_contacts?: boolean;
+  chatwoot_import_contacts?: boolean;
+  chatwoot_import_messages?: boolean;
+  chatwoot_days_limit_import?: number;
+  chatwoot_organization?: string;
+  chatwoot_logo?: string;
 }
 
 export const InstanceManager: React.FC = () => {
@@ -204,7 +216,10 @@ export const InstanceManager: React.FC = () => {
     if (currentStep === 1) {
       const chatwootUrl = chatwootConfig.chatwoot_url || defaultChatwootUrl;
       if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
-        notify.error('Chatwoot incompleto', 'Debes configurar la URL, Account ID y Token de Chatwoot');
+        notify.error({
+          message: 'Chatwoot incompleto',
+          description: 'Debes configurar la URL, Account ID y Token de Chatwoot'
+        });
         return;
       }
     }
@@ -236,20 +251,20 @@ export const InstanceManager: React.FC = () => {
       
       if (!chatwootUrl || !chatwootConfig.chatwoot_account_id || !chatwootConfig.chatwoot_token) {
         setCreating(false);
-        notify.error(
-          'Chatwoot requerido',
-          'URL, Account ID y Token de Chatwoot son obligatorios. Por favor completa todos los campos.'
-        );
+        notify.error({
+          message: 'Chatwoot requerido',
+          description: 'URL, Account ID y Token de Chatwoot son obligatorios. Por favor completa todos los campos.'
+        });
         return;
       }
 
       // Validar que Account ID sea un número válido
       if (isNaN(accountId) || accountId < 1) {
         setCreating(false);
-        notify.error(
-          'Account ID inválido',
-          'Account ID debe ser un número mayor a 0.'
-        );
+        notify.error({
+          message: 'Account ID inválido',
+          description: 'Account ID debe ser un número mayor a 0.'
+        });
         return;
       }
 

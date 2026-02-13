@@ -7,52 +7,34 @@ import { Databases, Query } from '@refinedev/appwrite';
 import { validateInstanceName, generateInstanceName } from '../utility/instanceUtils';
 import { notify } from '../utility/notifications';
 import { useNavigate } from 'react-router';
-import { Color } from 'antd/es/color-picker';
-import { text } from 'stream/consumers';
 
 const { Title, Text } = Typography;
 
+// ============================================
+// APPWRITE CONFIG COLLECTION ID
+// ============================================
+const CHATWOOT_CONFIG_COLLECTION_ID = import.meta.env.VITE_APPWRITE_CHATWOOT_CONFIG_COLLECTION_ID || 'chatwoot_config';
+
 /**
- * ============================================
- * ESTRUCTURA DEL PAYLOAD PARA EVOLUTION API
- * ============================================
- * 
- * El payload enviado a EvolutionAPI debe incluir:
- * 
- * {
- *   "instanceName": "string",          // Nombre único de la instancia
- *   "integration": "WHATSAPP-BAILEYS", // Tipo de integración
- *   "qrcode": true,                    // Habilitar QR
- *   "alwaysOnline": true,              // Siempre en línea
- *   "groupsIgnore": true,              // Ignorar grupos
- *   "webhook": {
- *     "url": "string",                 // URL del webhook
- *     "events": ["MESSAGES_UPSERT", ...] // Eventos a escuchar
- *   },
- *   "chatwoot": {
- *     "enabled": true,
- *     "url": "https://chatwoot.example.com", // URL base de Chatwoot
- *     "accountId": 1,                        // ID de cuenta (NÚMERO)
- *     "token": "string",                     // Token de API
- *     "nameInbox": "string",                 // Nombre del inbox
- *     "signMsg": true,                       // Firmar mensajes
- *     "reopenConversation": true,            // Reabrir conversaciones
- *     "conversationPending": false,          // Crear como pendiente
- *     "importContacts": true,                // Importar contactos
- *     "importMessages": true,                // Importar mensajes
- *     "daysLimitImportMessages": 3,          // Días para importación
- *     "mergeBrazilContacts": true,           // Unificar contactos Brasil
- *     "organization": "string",              // Nombre de organización
- *     "logo": "string"                       // URL del logo
- *   }
- * }
- * 
- * IMPORTANTE:
- * - accountId debe ser un NÚMERO, no string
- * - token debe ser válido y tener permisos de API
- * - url debe ser accesible desde EvolutionAPI
- * - Todos los campos de chatwoot son OBLIGATORIOS
+ * Interface para el documento de configuración en Appwrite
  */
+interface ChatwootConfigDocument {
+  $id: string;
+  user_id: string;
+  chatwoot_url: string;
+  chatwoot_account_id: string;
+  chatwoot_token: string; // ✅ AGREGADO: Token también se guarda
+  chatwoot_sign_msg: boolean;
+  chatwoot_reopen_conversation: boolean;
+  chatwoot_conversation_pending: boolean;
+  chatwoot_name_inbox: string;
+  chatwoot_merge_brazil_contacts: boolean;
+  chatwoot_import_contacts: boolean;
+  chatwoot_import_messages: boolean;
+  chatwoot_organization: string;
+  chatwoot_logo: string;
+  updated_at: string;
+}
 
 // Chatwoot configuration interface
 export interface ChatwootConfig {
@@ -66,7 +48,6 @@ export interface ChatwootConfig {
   chatwoot_merge_brazil_contacts: boolean;
   chatwoot_import_contacts: boolean;
   chatwoot_import_messages: boolean;
-  chatwoot_days_limit_import: number;
   chatwoot_organization: string;
   chatwoot_logo: string;
 }
@@ -83,7 +64,6 @@ const defaultChatwootConfig: ChatwootConfig = {
   chatwoot_merge_brazil_contacts: true,
   chatwoot_import_contacts: true,
   chatwoot_import_messages: true,
-  chatwoot_days_limit_import: 3,
   chatwoot_organization: 'ACO Assistant',
   chatwoot_logo: '',
 };
@@ -104,7 +84,11 @@ export const InstanceManager: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [newInstanceName, setNewInstanceName] = useState('');
   const [nameError, setNameError] = useState('');
+  
+  // ✅ ESTADO CON AUTOCOMPLETADO DESDE APPWRITE
   const [chatwootConfig, setChatwootConfig] = useState<ChatwootConfig>(defaultChatwootConfig);
+  const [chatwootConfigLoaded, setChatwootConfigLoaded] = useState(false);
+  
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -156,6 +140,56 @@ export const InstanceManager: React.FC = () => {
     }
   }, [identity?.$id, fetchInstances]);
 
+  /**
+   * Cargar configuración de Chatwoot desde Appwrite
+   */
+  useEffect(() => {
+    const loadChatwootConfig = async () => {
+      if (!identity?.$id || chatwootConfigLoaded) return;
+
+      try {
+        console.log('📂 Cargando configuración de Chatwoot desde Appwrite...');
+        
+        const response = await databases.listDocuments(
+          databaseId,
+          CHATWOOT_CONFIG_COLLECTION_ID,
+          [Query.equal('user_id', identity.$id)]
+        );
+
+        if (response.documents.length > 0) {
+          const doc = response.documents[0] as unknown as ChatwootConfigDocument;
+          console.log('✅ Configuración encontrada:', doc);
+          
+          setChatwootConfig({
+            chatwoot_url: doc.chatwoot_url || '',
+            chatwoot_account_id: doc.chatwoot_account_id || '',
+            chatwoot_token: doc.chatwoot_token || '', // ✅ MODIFICADO: Ahora carga el token
+            chatwoot_sign_msg: doc.chatwoot_sign_msg ?? true,
+            chatwoot_reopen_conversation: doc.chatwoot_reopen_conversation ?? true,
+            chatwoot_conversation_pending: doc.chatwoot_conversation_pending ?? false,
+            chatwoot_name_inbox: doc.chatwoot_name_inbox || '',
+            chatwoot_merge_brazil_contacts: doc.chatwoot_merge_brazil_contacts ?? true,
+            chatwoot_import_contacts: doc.chatwoot_import_contacts ?? true,
+            chatwoot_import_messages: doc.chatwoot_import_messages ?? true,
+            chatwoot_organization: doc.chatwoot_organization || 'ACO Assistant',
+            chatwoot_logo: doc.chatwoot_logo || '',
+          });
+          
+          setChatwootConfigLoaded(true);
+          console.log('✅ Configuración de Chatwoot cargada y autocompletada (incluyendo Token)');
+        } else {
+          console.log('ℹ️ No hay configuración guardada, usando valores por defecto');
+          setChatwootConfigLoaded(true);
+        }
+      } catch (error) {
+        console.error('❌ Error cargando configuración de Chatwoot:', error);
+        setChatwootConfigLoaded(true);
+      }
+    };
+
+    loadChatwootConfig();
+  }, [identity?.$id, databases, databaseId, chatwootConfigLoaded]);
+
   const getStatusBadge = (status: string) => {
     if (status === 'connected') {
       return (
@@ -204,14 +238,10 @@ export const InstanceManager: React.FC = () => {
 
   /**
    * Validar configuración de Chatwoot
-   * ============================================
-   * Verifica que todos los campos requeridos de Chatwoot estén presentes y sean válidos
-   * @returns {string|null} Mensaje de error si la validación falla, null si es válida
    */
   const validateChatwootConfig = (config: ChatwootConfig): string | null => {
     const url = config.chatwoot_url || defaultChatwootUrl;
     
-    // Log de validación
     console.log('🔍 Validando Chatwoot Config:');
     console.log(`  URL: ${url}`);
     console.log(`  Account ID: ${config.chatwoot_account_id}`);
@@ -252,21 +282,21 @@ export const InstanceManager: React.FC = () => {
       return 'Token de API de Chatwoot es requerido';
     }
     
-    // Validar longitud mínima del token (tokens típicos tienen al menos 20 caracteres)
+    // Validar longitud mínima del token
     if (config.chatwoot_token.length < 10) {
       console.error('❌ Token muy corto:', config.chatwoot_token.length, 'caracteres');
       return 'Token de API parece muy corto (mínimo 10 caracteres)';
     }
     console.log(`✅ Token de API válido (${config.chatwoot_token.length} caracteres)`);
     
-    // Validar Inbox Name (debe ser válido si se proporciona)
+    // Validar Inbox Name
     if (config.chatwoot_name_inbox && config.chatwoot_name_inbox.length > 100) {
       console.error('❌ Nombre de Inbox muy largo:', config.chatwoot_name_inbox.length);
       return 'Nombre de Inbox no puede exceder 100 caracteres';
     }
     
     console.log('✅ Todas las validaciones de Chatwoot pasaron correctamente');
-    return null; // Validación exitosa
+    return null;
   };
 
   const handleOpenModal = () => {
@@ -274,7 +304,7 @@ export const InstanceManager: React.FC = () => {
     setCurrentStep(0);
     setNewInstanceName('');
     setNameError('');
-    setChatwootConfig(defaultChatwootConfig);
+    // La configuración ya está cargada desde Appwrite en el useEffect
     form.resetFields();
   };
 
@@ -283,7 +313,6 @@ export const InstanceManager: React.FC = () => {
     setCurrentStep(0);
     setNewInstanceName('');
     setNameError('');
-    setChatwootConfig(defaultChatwootConfig);
     form.resetFields();
   };
 
@@ -308,7 +337,6 @@ export const InstanceManager: React.FC = () => {
   const handleNextStep = () => {
     if (currentStep === 0 && (!newInstanceName || nameError)) return;
     
-    // Validar Chatwoot es OBLIGATORIO en Step 1 (paso 2)
     if (currentStep === 1) {
       const chatwootError = validateChatwootConfig(chatwootConfig);
       if (chatwootError) {
@@ -339,9 +367,7 @@ export const InstanceManager: React.FC = () => {
     try {
       const fullInstanceName = generateInstanceName(newInstanceName);
 
-      // ============================================
-      // VALIDAR: Chatwoot usando la función
-      // ============================================
+      // Validar Chatwoot
       const chatwootError = validateChatwootConfig(chatwootConfig);
       if (chatwootError) {
         setCreating(false);
@@ -355,9 +381,7 @@ export const InstanceManager: React.FC = () => {
       console.log('🚀 Creando instancia con nombre:', fullInstanceName);
       console.log('📋 Incluyendo integración de Chatwoot en el payload');
 
-      // ============================================
       // BUILD EVOLUTION API PAYLOAD - CON CHATWOOT
-      // ============================================
       const evolutionBody: any = {
         instanceName: fullInstanceName,
         integration: 'WHATSAPP-BAILEYS',
@@ -372,18 +396,15 @@ export const InstanceManager: React.FC = () => {
         }
       };
 
-      // ✅ AGREGAR CAMPOS DE CHATWOOT SI ESTÁ HABILITADO
+      // AGREGAR CAMPOS DE CHATWOOT
       if (chatwootConfig.chatwoot_url && 
           chatwootConfig.chatwoot_account_id && 
           chatwootConfig.chatwoot_token) {
         
         console.log('✅ Agregando campos de Chatwoot al payload');
         
-        // Validar URL (sin "/" al final)
         const cleanChatwootUrl = chatwootConfig.chatwoot_url.replace(/\/$/, '');
         
-        // ⚠️ IMPORTANTE: Los campos van directamente en el payload raíz
-        // NO en un objeto "chatwoot" anidado
         evolutionBody.chatwootAccountId = chatwootConfig.chatwoot_account_id;
         evolutionBody.chatwootToken = chatwootConfig.chatwoot_token;
         evolutionBody.chatwootUrl = cleanChatwootUrl;
@@ -394,7 +415,7 @@ export const InstanceManager: React.FC = () => {
         evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts ?? true;
         evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts ?? true;
         evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages ?? true;
-        evolutionBody.chatwootDaysLimitImportMessages = chatwootConfig.chatwoot_days_limit_import ?? 2;
+        evolutionBody.chatwootDaysLimitImportMessages = 1;
         evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization || 'ACO Assistant';
         evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
         
@@ -403,17 +424,7 @@ export const InstanceManager: React.FC = () => {
         console.log('⏭️ Chatwoot no configurado completamente');
       }
       
-      console.log('✅ Payload estructurado COMPLETO');
       console.log('📤 PAYLOAD a EvolutionAPI:', JSON.stringify(evolutionBody, null, 2));
-      
-      // ============================================
-      // LOGGING DETALLADO PRE-ENVÍO
-      // ============================================
-      console.log('🔍 DETALLES PRE-ENVÍO:');
-      console.log(`  📱 Instance Name: ${fullInstanceName}`);
-      console.log(`  📍 Server URL: ${serverUrl}`);
-      console.log(`  🔐 API Key: ${apiKey ? `✅ PRESENTE` : '❌ AUSENTE'}`);
-      console.log(`  🔧 Chatwoot: ${evolutionBody.chatwootAccountId ? '✅ HABILITADO' : '❌ DESHABILITADO'}`);
 
       const evolutionResponse = await fetch(`${serverUrl}/instance/create`, {
         method: 'POST',
@@ -426,11 +437,8 @@ export const InstanceManager: React.FC = () => {
 
       const responseText = await evolutionResponse.text();
       console.log('📥 EvolutionAPI Response Status:', evolutionResponse.status);
-      console.log('📥 EvolutionAPI Response Headers:', Object.fromEntries(evolutionResponse.headers));
-      console.log('📥 EvolutionAPI Response Body (first 1000 chars):', responseText.substring(0, 1000));
 
       if (!evolutionResponse.ok) {
-        // Intentar parsear la respuesta de error para obtener detalles de Chatwoot
         let errorDetails = '';
         try {
           const errorData = JSON.parse(responseText);
@@ -449,14 +457,11 @@ export const InstanceManager: React.FC = () => {
         throw new Error(`Evolution API error (${evolutionResponse.status}): ${errorDetails || 'Sin respuesta'}`);
       }
 
-      // Parse response
       let evolutionData;
       try {
         evolutionData = JSON.parse(responseText);
-        console.log('✅ Response Parsed Successfully');
         console.log('✅ Instancia creada en EvolutionAPI:', JSON.stringify(evolutionData, null, 2));
         
-        // Verificar si la instancia tiene estado conectado
         if (evolutionData.instance?.status === 'connected') {
           console.log('🟢 Instancia ya está CONECTADA en EvolutionAPI');
         } else {
@@ -467,10 +472,61 @@ export const InstanceManager: React.FC = () => {
         throw new Error(`Respuesta inválida de Evolution API: ${responseText.substring(0, 100)}`);
       }
 
-      // ============================================
-      // GUARDAR EN APPWRITE - Datos esenciales únicamente
-      // (Chatwoot se maneja 100% en EvolutionAPI)
-      // ============================================
+      // ✅ GUARDAR/ACTUALIZAR CONFIGURACIÓN DE CHATWOOT EN APPWRITE
+      if (evolutionBody.chatwootAccountId) {
+        try {
+          console.log('💾 Guardando configuración de Chatwoot en Appwrite...');
+          
+          // Buscar si ya existe una configuración para este usuario
+          const existingConfig = await databases.listDocuments(
+            databaseId,
+            CHATWOOT_CONFIG_COLLECTION_ID,
+            [Query.equal('user_id', identity.$id)]
+          );
+
+          const configData = {
+            user_id: identity.$id,
+            chatwoot_url: chatwootConfig.chatwoot_url || '',
+            chatwoot_account_id: chatwootConfig.chatwoot_account_id || '',
+            chatwoot_token: chatwootConfig.chatwoot_token || '', // ✅ MODIFICADO: Ahora guarda el token
+            chatwoot_sign_msg: chatwootConfig.chatwoot_sign_msg ?? true,
+            chatwoot_reopen_conversation: chatwootConfig.chatwoot_reopen_conversation ?? true,
+            chatwoot_conversation_pending: chatwootConfig.chatwoot_conversation_pending ?? false,
+            chatwoot_name_inbox: chatwootConfig.chatwoot_name_inbox || '',
+            chatwoot_merge_brazil_contacts: chatwootConfig.chatwoot_merge_brazil_contacts ?? true,
+            chatwoot_import_contacts: chatwootConfig.chatwoot_import_contacts ?? true,
+            chatwoot_import_messages: chatwootConfig.chatwoot_import_messages ?? true,
+            chatwoot_organization: chatwootConfig.chatwoot_organization || 'ACO Assistant',
+            chatwoot_logo: chatwootConfig.chatwoot_logo || '',
+            updated_at: new Date().toISOString(),
+          };
+
+          if (existingConfig.documents.length > 0) {
+            // Actualizar configuración existente
+            await databases.updateDocument(
+              databaseId,
+              CHATWOOT_CONFIG_COLLECTION_ID,
+              existingConfig.documents[0].$id,
+              configData
+            );
+            console.log('✅ Configuración de Chatwoot actualizada en Appwrite (incluyendo Token)');
+          } else {
+            // Crear nueva configuración
+            await databases.createDocument(
+              databaseId,
+              CHATWOOT_CONFIG_COLLECTION_ID,
+              'unique()',
+              configData
+            );
+            console.log('✅ Configuración de Chatwoot guardada en Appwrite (incluyendo Token)');
+          }
+        } catch (error) {
+          console.error('⚠️ Error guardando configuración de Chatwoot:', error);
+          // No bloquear el flujo si falla el guardado de configuración
+        }
+      }
+
+      // GUARDAR EN APPWRITE - SOLO DATOS BÁSICOS
       const appwriteDoc = await databases.createDocument(
         databaseId,
         collectionId,
@@ -485,13 +541,8 @@ export const InstanceManager: React.FC = () => {
       );
 
       console.log('✅ Documento guardado en Appwrite:', appwriteDoc.$id);
-      
-      if (evolutionBody.chatwootAccountId) {
-        console.log('✅ Chatwoot configurado en la creación de instancia');
-      }
+      console.log('✅ Chatwoot configurado SOLO en EvolutionAPI');
 
-      // Notificar respuesta de Evolution API
-      const evolutionInfo = evolutionData?.instance || evolutionData;
       notify.success({
         message: '¡Instancia creada exitosamente!',
         description: (
@@ -503,14 +554,11 @@ export const InstanceManager: React.FC = () => {
                 ✅ Integración de Chatwoot configurada
               </p>
             )}
-            {evolutionInfo?.status && <p>Estado: {evolutionInfo.status}</p>}
-            {evolutionInfo?.instanceId && <p>ID: {evolutionInfo.instanceId}</p>}
           </div>
         ),
         duration: 6,
       });
 
-      // Navegar directamente al QR sin mostrar video
       setCreatedInstanceName(fullInstanceName);
       handleCloseModal();
       navigate(`/whatsapp/scan/${fullInstanceName}`);
@@ -518,7 +566,6 @@ export const InstanceManager: React.FC = () => {
       console.error('❌ Error creating instance:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       
-      // Detectar si el error es relacionado con Chatwoot
       const isChatwootError = errorMessage.toLowerCase().includes('chatwoot');
       
       notify.error({
@@ -650,14 +697,80 @@ export const InstanceManager: React.FC = () => {
     </Form>
   );
 
-  // Step 2: Chatwoot Configuration (MANDATORY)
+  // Step 2: Chatwoot Configuration
   const renderStep2 = () => (
     <Form layout="vertical">
       <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(37, 211, 102, 0.08)', borderRadius: 8, border: '1px solid rgba(37, 211, 102, 0.2)' }}>
-        <Text style={{ color: '#128C7E' }}>
-          <strong>⚠️ Chatwoot es obligatorio</strong> para esta instancia. Completa todos los campos requeridos:
-        </Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: '#128C7E' }}>
+            <strong>⚠️ Chatwoot es obligatorio</strong> para esta instancia. Completa todos los campos requeridos:
+          </Text>
+          {chatwootConfigLoaded && chatwootConfig.chatwoot_url && (
+            <Button
+              type="link"
+              size="small"
+              danger
+              onClick={async () => {
+                try {
+                  // Eliminar configuración de Appwrite
+                  const existingConfig = await databases.listDocuments(
+                    databaseId,
+                    CHATWOOT_CONFIG_COLLECTION_ID,
+                    [Query.equal('user_id', identity?.$id || '')]
+                  );
+
+                  if (existingConfig.documents.length > 0) {
+                    await databases.deleteDocument(
+                      databaseId,
+                      CHATWOOT_CONFIG_COLLECTION_ID,
+                      existingConfig.documents[0].$id
+                    );
+                  }
+
+                  // Resetear estado
+                  setChatwootConfig({
+                    ...defaultChatwootConfig,
+                    chatwoot_token: '',
+                  });
+
+                  notify.success({
+                    message: 'Configuración limpiada',
+                    description: 'Los campos han sido restaurados',
+                  });
+                } catch (error) {
+                  console.error('Error eliminando configuración:', error);
+                  notify.error({
+                    message: 'Error',
+                    description: 'No se pudo limpiar la configuración',
+                  });
+                }
+              }}
+              style={{ fontSize: 12 }}
+            >
+              🗑️ Limpiar
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Indicador de autocompletado */}
+      {chatwootConfigLoaded && chatwootConfig.chatwoot_url && (
+        <div style={{ 
+          marginBottom: '16px', 
+          padding: '12px 16px', 
+          backgroundColor: 'rgba(52, 183, 241, 0.08)', 
+          borderRadius: 8, 
+          border: '1px solid rgba(52, 183, 241, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <InfoCircleOutlined style={{ color: '#34B7F1' }} />
+          <Text style={{ color: '#1890ff', fontSize: 13 }}>
+            ✨ Campos autocompletados desde tu configuración guardada (incluyendo Token)
+          </Text>
+        </div>
+      )}
 
       <Form.Item 
         label={
@@ -666,12 +779,11 @@ export const InstanceManager: React.FC = () => {
             URL de Chatwoot <span style={{ color: '#ff4d4f' }}>*</span>
           </span>
         }
-        required
         validateStatus={!chatwootConfig.chatwoot_url && !defaultChatwootUrl ? 'error' : ''}
         help={!chatwootConfig.chatwoot_url && !defaultChatwootUrl ? 'URL es requerida' : ''}
       >
         <Input
-          placeholder={defaultChatwootUrl || "https://tu-chatwoot.com"}
+          placeholder={defaultChatwootUrl || "https://chatwoot.ejemplo.com"}
           value={chatwootConfig.chatwoot_url}
           onChange={(e) => updateChatwootConfig('chatwoot_url', e.target.value)}
           addonBefore="https://"
@@ -814,17 +926,7 @@ export const InstanceManager: React.FC = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item label="Días límite importación">
-                <InputNumber
-                  min={1}
-                  max={30}
-                  value={chatwootConfig.chatwoot_days_limit_import}
-                  onChange={(value) => updateChatwootConfig('chatwoot_days_limit_import', value || 3)}
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
+            
             <Col span={12}>
               <Form.Item label="Unificar contactos Brasil">
                 <Switch
@@ -995,7 +1097,6 @@ export const InstanceManager: React.FC = () => {
                   body: { padding: '20px' }
                 }}
               >
-                {/* Header with icon and name */}
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -1033,12 +1134,10 @@ export const InstanceManager: React.FC = () => {
                     </Text>
                   </div>
                 </div>
-                {/* Status badges */}
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ marginBottom: 8 }}>{getStatusBadge(instance.status)}</div>
                 </div>
 
-                {/* Actions */}
                 <div style={{ display: 'flex', gap: 8 }}>
                   {instance.status === 'pending' && (
                     <Button
@@ -1137,7 +1236,6 @@ export const InstanceManager: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Modal de Video Tutorial */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

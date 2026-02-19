@@ -697,66 +697,19 @@ export const InstanceManager: React.FC = () => {
     </Form>
   );
 
-  // Step 2: Chatwoot Configuration
+  // Step 2: Chatwoot Configuration - SIMPLIFICADO (Solo 3 campos)
   const renderStep2 = () => (
     <Form layout="vertical">
-      <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(37, 211, 102, 0.08)', borderRadius: 8, border: '1px solid rgba(37, 211, 102, 0.2)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: '#128C7E' }}>
-            <strong>⚠️ Chatwoot es obligatorio</strong> para esta instancia. Completa todos los campos requeridos:
-          </Text>
-          {chatwootConfigLoaded && chatwootConfig.chatwoot_url && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              onClick={async () => {
-                try {
-                  // Eliminar configuración de Appwrite
-                  const existingConfig = await databases.listDocuments(
-                    databaseId,
-                    CHATWOOT_CONFIG_COLLECTION_ID,
-                    [Query.equal('user_id', identity?.$id || '')]
-                  );
-
-                  if (existingConfig.documents.length > 0) {
-                    await databases.deleteDocument(
-                      databaseId,
-                      CHATWOOT_CONFIG_COLLECTION_ID,
-                      existingConfig.documents[0].$id
-                    );
-                  }
-
-                  // Resetear estado
-                  setChatwootConfig({
-                    ...defaultChatwootConfig,
-                    chatwoot_token: '',
-                  });
-
-                  notify.success({
-                    message: 'Configuración limpiada',
-                    description: 'Los campos han sido restaurados',
-                  });
-                } catch (error) {
-                  console.error('Error eliminando configuración:', error);
-                  notify.error({
-                    message: 'Error',
-                    description: 'No se pudo limpiar la configuración',
-                  });
-                }
-              }}
-              style={{ fontSize: 12 }}
-            >
-              🗑️ Limpiar
-            </Button>
-          )}
-        </div>
+      <div style={{ marginBottom: '24px', padding: '12px 16px', backgroundColor: 'rgba(37, 211, 102, 0.08)', borderRadius: 8, border: '1px solid rgba(37, 211, 102, 0.2)' }}>
+        <Text style={{ color: '#128C7E' }}>
+          <strong>⚠️ Chatwoot es obligatorio</strong> para esta instancia. Completa los tres campos requeridos:
+        </Text>
       </div>
 
       {/* Indicador de autocompletado */}
       {chatwootConfigLoaded && chatwootConfig.chatwoot_url && (
         <div style={{ 
-          marginBottom: '16px', 
+          marginBottom: '20px', 
           padding: '12px 16px', 
           backgroundColor: 'rgba(52, 183, 241, 0.08)', 
           borderRadius: 8, 
@@ -767,11 +720,12 @@ export const InstanceManager: React.FC = () => {
         }}>
           <InfoCircleOutlined style={{ color: '#34B7F1' }} />
           <Text style={{ color: '#1890ff', fontSize: 13 }}>
-            ✨ Campos autocompletados desde tu configuración guardada (incluyendo Token)
+            ✨ Configuración autocompletada desde tu guardado anterior
           </Text>
         </div>
       )}
 
+      {/* Campo 1: URL de Chatwoot */}
       <Form.Item 
         label={
           <span>
@@ -787,6 +741,7 @@ export const InstanceManager: React.FC = () => {
           value={chatwootConfig.chatwoot_url}
           onChange={(e) => updateChatwootConfig('chatwoot_url', e.target.value)}
           addonBefore="https://"
+          size="large"
         />
         {defaultChatwootUrl && !chatwootConfig.chatwoot_url && (
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -795,6 +750,7 @@ export const InstanceManager: React.FC = () => {
         )}
       </Form.Item>
 
+      {/* Campo 2: Account ID y Campo 3: Token - En dos columnas */}
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item 
@@ -813,6 +769,7 @@ export const InstanceManager: React.FC = () => {
               onChange={(value) => updateChatwootConfig('chatwoot_account_id', value?.toString() || '')}
               min={1}
               style={{ width: '100%' }}
+              size="large"
             />
           </Form.Item>
         </Col>
@@ -831,113 +788,24 @@ export const InstanceManager: React.FC = () => {
               placeholder="Token de acceso"
               value={chatwootConfig.chatwoot_token}
               onChange={(e) => updateChatwootConfig('chatwoot_token', e.target.value)}
+              size="large"
             />
           </Form.Item>
         </Col>
       </Row>
 
-      <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item label="Nombre del Inbox">
-            <Input
-              placeholder="Nombre para el inbox (opcional)"
-              value={chatwootConfig.chatwoot_name_inbox}
-              onChange={(e) => updateChatwootConfig('chatwoot_name_inbox', e.target.value)}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="Organización">
-            <Input
-              placeholder="Nombre de la organización"
-              value={chatwootConfig.chatwoot_organization}
-              onChange={(e) => updateChatwootConfig('chatwoot_organization', e.target.value)}
-            />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Form.Item label="URL del Logo (opcional)">
-        <Input
-          placeholder="https://ejemplo.com/logo.png"
-          value={chatwootConfig.chatwoot_logo}
-          onChange={(e) => updateChatwootConfig('chatwoot_logo', e.target.value)}
-        />
-      </Form.Item>
-
-      <Divider orientation="left">
-        <SettingOutlined /> Opciones Avanzadas
-      </Divider>
-
-      <Collapse ghost>
-        <Collapse.Panel header="Configuración de mensajes y conversaciones" key="1">
-          <Row gutter={[16, 16]}>
-            <Col span={12}>
-              <Form.Item label="Firmar mensajes">
-                <Switch
-                  checked={chatwootConfig.chatwoot_sign_msg}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_sign_msg', checked)}
-                />
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                  Agregar firma del agente
-                </Text>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Reabrir conversaciones">
-                <Switch
-                  checked={chatwootConfig.chatwoot_reopen_conversation}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_reopen_conversation', checked)}
-                />
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                  Reabrir al recibir mensaje
-                </Text>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Conversación pendiente">
-                <Switch
-                  checked={chatwootConfig.chatwoot_conversation_pending}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_conversation_pending', checked)}
-                />
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                  Crear como pendiente
-                </Text>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Collapse.Panel>
-
-        <Collapse.Panel header="Importación de datos" key="2">
-          <Row gutter={[16, 16]}>
-            <Col span={12}>
-              <Form.Item label="Importar contactos">
-                <Switch
-                  checked={chatwootConfig.chatwoot_import_contacts}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_import_contacts', checked)}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Importar mensajes">
-                <Switch
-                  checked={chatwootConfig.chatwoot_import_messages}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_import_messages', checked)}
-                />
-              </Form.Item>
-            </Col>
-            
-            <Col span={12}>
-              <Form.Item label="Unificar contactos Brasil">
-                <Switch
-                  checked={chatwootConfig.chatwoot_merge_brazil_contacts}
-                  onChange={(checked) => updateChatwootConfig('chatwoot_merge_brazil_contacts', checked)}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Collapse.Panel>
-      </Collapse>
+      {/* Nota informativa sobre configuración por defecto */}
+      <div style={{ 
+        padding: '16px', 
+        background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08) 0%, rgba(37, 211, 102, 0.15) 100%)',
+        borderRadius: 12, 
+        border: '1px solid rgba(37, 211, 102, 0.3)',
+        textAlign: 'center'
+      }}>
+        <Text style={{ color: '#128C7E', fontSize: 13 }}>
+          ℹ️ El resto de configuraciones se aplicarán con valores por defecto optimizados para tu instancia
+        </Text>
+      </div>
     </Form>
   );
 
@@ -984,11 +852,8 @@ export const InstanceManager: React.FC = () => {
             <Col span={12}><Text type="secondary">Account ID:</Text></Col>
             <Col span={12}><Text strong>{chatwootConfig.chatwoot_account_id}</Text></Col>
             
-            <Col span={12}><Text type="secondary">Inbox:</Text></Col>
-            <Col span={12}><Text strong>{chatwootConfig.chatwoot_name_inbox || 'Auto-generado'}</Text></Col>
-            
-            <Col span={12}><Text type="secondary">Organización:</Text></Col>
-            <Col span={12}><Text strong>{chatwootConfig.chatwoot_organization}</Text></Col>
+            <Col span={12}><Text type="secondary">Token:</Text></Col>
+            <Col span={12}><Text strong>{'•'.repeat(8)} (configurado)</Text></Col>
           </Row>
         </Card>
       ) : (
@@ -1002,7 +867,7 @@ export const InstanceManager: React.FC = () => {
           }}
         >
           <ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
-          <Text style={{ color: '#ff4d4f' }}><strong>Chatwoot REQUERIDO</strong> - Completa todos los campos obligatorios antes de continuar</Text>
+          <Text style={{ color: '#ff4d4f' }}><strong>Chatwoot REQUERIDO</strong> - Completa los tres campos obligatorios (URL, Account ID, Token)</Text>
         </Card>
       )}
 

@@ -12,7 +12,7 @@ Panel de administración para gestionar instancias de WhatsApp conectadas al asi
 | UI Components | Ant Design 5 + Material UI Icons |
 | Backend/BaaS | Appwrite (auth + database) |
 | API WhatsApp | EvolutionAPI |
-| CRM | Chatwoot (opcional) |
+
 | Despliegue | Docker (multi-stage build) |
 
 ## Características
@@ -22,7 +22,6 @@ Panel de administración para gestionar instancias de WhatsApp conectadas al asi
 - 📱 Diseño responsive
 - 🔔 Sistema de notificaciones mejorado
 - 🔐 Autenticación completa con Appwrite
-- 💬 Integración con Chatwoot (opcional)
 
 ## Funcionalidades
 
@@ -34,20 +33,11 @@ Panel de administración para gestionar instancias de WhatsApp conectadas al asi
 - Protección de rutas (redirect a login si no autenticado)
 
 ### Gestión de Instancias WhatsApp
-- **Crear instancia**: Wizard de 3 pasos (Nombre → Chatwoot → Confirmar)
+- **Crear instancia**: Wizard de 2 pasos (Nombre → Confirmar)
 - **Listar instancias**: Cards con estado visual y badges
 - **Eliminar instancia**: Elimina de EvolutionAPI y Appwrite sincronizadamente
 - **Estados**: `pending` (esperando conexión) / `connected` (activo)
 - **Reconectar**: Botón para volver a escanear QR en instancias pendientes
-
-### Integración Chatwoot
-Al crear una instancia, puedes configurar opcionalmente la integración con Chatwoot:
-- Account ID y Token de API
-- Nombre personalizado del Inbox
-- Firma de mensajes automática
-- Reapertura de conversaciones
-- Importación de contactos y mensajes históricos
-- Unificación de contactos de Brasil
 
 ### Conexión vía QR
 - Página dedicada con diseño WhatsApp
@@ -113,9 +103,6 @@ VITE_API_KEY=tu_api_key
 
 # Webhooks
 VITE_BOTACO_WEBHOOK_URL=http://n8n:5678/webhook/botaco
-
-# Chatwoot (opcional)
-VITE_CHATWOOT_URL=https://tu-chatwoot.com
 ```
 
 
@@ -133,22 +120,6 @@ VITE_CHATWOOT_URL=https://tu-chatwoot.com
 | `status` | string | Estado: pending/connected |
 | `api_key` | string | API key asociada |
 | `created_at` | string | Fecha de creación |
-
-**Campos de Chatwoot (opcionales):**
-| Campo | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `chatwoot_account_id` | string | - | ID de cuenta Chatwoot |
-| `chatwoot_token` | string | - | Token de API Chatwoot |
-| `chatwoot_sign_msg` | boolean | true | Firmar mensajes con nombre del agente |
-| `chatwoot_reopen_conversation` | boolean | true | Reabrir conversación al recibir mensaje |
-| `chatwoot_conversation_pending` | boolean | false | Crear conversaciones como pendientes |
-| `chatwoot_name_inbox` | string | - | Nombre personalizado del inbox |
-| `chatwoot_merge_brazil_contacts` | boolean | true | Unificar contactos de Brasil |
-| `chatwoot_import_contacts` | boolean | true | Importar contactos existentes |
-| `chatwoot_import_messages` | boolean | true | Importar mensajes históricos |
-| `chatwoot_days_limit_import` | number | 3 | Días límite para importar mensajes |
-| `chatwoot_organization` | string | "ACO Assistant" | Nombre de la organización |
-| `chatwoot_logo` | string | - | URL del logo |
 
 ## Instalación y Ejecución
 
@@ -175,7 +146,6 @@ docker build -t automation-project \
   --build-arg VITE_APPWRITE_WHATSAPP_COLLECTION_ID=... \
   --build-arg VITE_SERVER_URL=... \
   --build-arg VITE_API_KEY=... \
-  --build-arg VITE_CHATWOOT_URL=... \
   .
 
 # Ejecutar contenedor
@@ -193,13 +163,13 @@ docker run -p 3000:3000 automation-project
 ## Flujo de Creación de Instancia
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Paso 1:       │────▶│   Paso 2:       │────▶│   Paso 3:       │
-│   Nombre        │     │   Chatwoot      │     │   Confirmar     │
-│   instancia     │     │   (opcional)    │     │   y crear       │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                         │
-                                                         ▼
+┌─────────────────┐     ┌─────────────────┐
+│   Paso 1:       │────▶│   Paso 2:       │
+│   Nombre        │     │   Confirmar     │
+│   instancia     │     │   y crear       │
+└─────────────────┘     └────────┬────────┘
+                                 │
+                                 ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   Asistente     │◀────│   Conexión      │◀────│   Escanear      │
 │   Activo        │     │   Exitosa       │     │   QR            │
@@ -209,13 +179,13 @@ docker run -p 3000:3000 automation-project
 ## Arquitectura de Integración
 
 ```
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│    React     │─────▶│  Appwrite    │      │   Chatwoot   │
-│    Panel     │      │  (Auth/DB)   │      │   (CRM)      │
-└──────┬───────┘      └──────────────┘      └──────▲───────┘
-       │                                          │
-       │              ┌──────────────┐            │
-       └─────────────▶│ EvolutionAPI │────────────┘
+┌──────────────┐      ┌──────────────┐
+│    React     │─────▶│  Appwrite    │
+│    Panel     │      │  (Auth/DB)   │
+└──────┬───────┘      └──────────────┘
+       │
+       │              ┌──────────────┐
+       └─────────────▶│ EvolutionAPI │
                       │  (WhatsApp)  │
                       └──────┬───────┘
                              │
@@ -225,9 +195,7 @@ docker run -p 3000:3000 automation-project
                       └──────────────┘
 ```
 
-## Payload de EvolutionAPI con Chatwoot
-
-Cuando se crea una instancia con Chatwoot configurado, se envía el siguiente payload:
+## Payload de EvolutionAPI
 
 ```json
 {
@@ -241,20 +209,7 @@ Cuando se crea una instancia con Chatwoot configurado, se envía el siguiente pa
     "byEvents": false,
     "base64": true,
     "events": ["MESSAGES_UPSERT"]
-  },
-  "chatwootAccountId": "1",
-  "chatwootToken": "tu_token_aqui",
-  "chatwootUrl": "https://tu-chatwoot.com",
-  "chatwootSignMsg": true,
-  "chatwootReopenConversation": true,
-  "chatwootConversationPending": false,
-  "chatwootNameInbox": "MiTienda_1234",
-  "chatwootMergeBrazilContacts": true,
-  "chatwootImportContacts": true,
-  "chatwootImportMessages": true,
-  "chatwootDaysLimitImportMessages": 3,
-  "chatwootOrganization": "ACO Assistant",
-  "chatwootLogo": "https://evolution-api.com/files/evolution-api-favicon.png"
+  }
 }
 ```
 
@@ -267,7 +222,7 @@ El proyecto incluye un tema personalizado inspirado en WhatsApp:
 | Primary | #25D366 | Botones, badges, acentos |
 | Primary Hover | #128C7E | Estados hover |
 | Primary Active | #075E54 | Estados activos |
-| Secondary | #34B7F1 | Chatwoot badges, info |
+| Secondary | #34B7F1 | Badges, info |
 | Background Dark | #0B141A | Fondo modo oscuro |
 | Sider Dark | #111B21 | Sidebar modo oscuro |
 

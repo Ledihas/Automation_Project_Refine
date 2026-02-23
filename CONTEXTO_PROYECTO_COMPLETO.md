@@ -11,7 +11,6 @@
 - UI: Ant Design 5 + Material UI Icons
 - Backend/BaaS: Appwrite (autenticación + base de datos)
 - API WhatsApp: EvolutionAPI
-- CRM: Chatwoot (integración opcional)
 - Despliegue: Docker (multi-stage build)
 
 ---
@@ -91,9 +90,6 @@ VITE_API_KEY=tu_api_key
 VITE_BOTACO_WEBHOOK_URL=http://n8n:5678/webhook/botaco
 VITE_CONFIG_WEBHOOK_URL=https://n8m.agentedecargaonline.com/webhook/configBot
 
-# Chatwoot (CRM - opcional)
-VITE_CHATWOOT_URL=https://tu-chatwoot.com
-
 # Despliegue (opcional)
 VITE_USE_BASE_PATH=false  # true para Nginx con /whatsapp/
 ```
@@ -112,23 +108,6 @@ VITE_USE_BASE_PATH=false  # true para Nginx con /whatsapp/
 | `status` | string | Estado: "pending" o "connected" |
 | `api_key` | string | API key de EvolutionAPI |
 | `created_at` | string | Fecha de creación ISO 8601 |
-
-**Campos de Chatwoot (opcionales):**
-| Campo | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `chatwoot_url` | string | - | URL del servidor Chatwoot |
-| `chatwoot_account_id` | string | - | ID de cuenta Chatwoot |
-| `chatwoot_token` | string | - | Token de API Chatwoot |
-| `chatwoot_sign_msg` | boolean | true | Firmar mensajes con nombre del agente |
-| `chatwoot_reopen_conversation` | boolean | true | Reabrir conversación al recibir mensaje |
-| `chatwoot_conversation_pending` | boolean | false | Crear conversaciones como pendientes |
-| `chatwoot_name_inbox` | string | - | Nombre personalizado del inbox |
-| `chatwoot_merge_brazil_contacts` | boolean | true | Unificar contactos de Brasil |
-| `chatwoot_import_contacts` | boolean | true | Importar contactos existentes |
-| `chatwoot_import_messages` | boolean | true | Importar mensajes históricos |
-| `chatwoot_days_limit_import` | number | 3 | Días límite para importar mensajes |
-| `chatwoot_organization` | string | "ACO Assistant" | Nombre de la organización |
-| `chatwoot_logo` | string | - | URL del logo |
 
 ---
 

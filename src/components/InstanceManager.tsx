@@ -415,7 +415,7 @@ export const InstanceManager: React.FC = () => {
         evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts ?? true;
         evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts ?? true;
         evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages ?? true;
-        evolutionBody.chatwootDaysLimitImportMessages = 1;
+        evolutionBody.chatwootDaysLimitImportMessages = 7;
         evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization || 'ACO Assistant';
         evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
         

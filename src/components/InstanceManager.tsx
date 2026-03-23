@@ -62,8 +62,8 @@ const defaultChatwootConfig: ChatwootConfig = {
   chatwoot_conversation_pending: false,
   chatwoot_name_inbox: '',
   chatwoot_merge_brazil_contacts: true,
-  chatwoot_import_contacts: true,
-  chatwoot_import_messages: true,
+  chatwoot_import_contacts: false,
+  chatwoot_import_messages: false,
   chatwoot_organization: 'ACO Assistant',
   chatwoot_logo: '',
 };
@@ -116,13 +116,72 @@ export const InstanceManager: React.FC = () => {
 
     setLoading(true);
     try {
+      // 1. Obtener instancias guardadas en Appwrite para este usuario
       const response = await databases.listDocuments(
         databaseId,
         collectionId,
         [Query.equal('user_id', identity.$id)]
       );
+      const appwriteInstances = response.documents as unknown as Instance[];
 
-      setInstances(response.documents as unknown as Instance[]);
+      // 2. Obtener todas las instancias activas en EvolutionAPI
+      let evolutionConnected: Set<string> = new Set();
+      try {
+        const evoRes = await fetch(`${serverUrl}/instance/fetchInstances`, {
+          headers: { apikey: apiKey },
+        });
+        if (evoRes.ok) {
+          const evoData: Array<{ instance: { instanceName: string; status: string } }> = await evoRes.json();
+          // Considerar conectada solo si status === "open"
+          evoData.forEach(({ instance }) => {
+            if (instance.status === 'open') {
+              evolutionConnected.add(instance.instanceName);
+            }
+          });
+          console.log('✅ Instancias activas en EvolutionAPI:', [...evolutionConnected]);
+        } else {
+          console.warn('⚠️ No se pudo consultar EvolutionAPI, mostrando instancias sin verificar');
+          // Si falla la consulta a Evolution, mostrar todo sin eliminar nada
+          setInstances(appwriteInstances);
+          return;
+        }
+      } catch (evoError) {
+        console.warn('⚠️ Error al contactar EvolutionAPI:', evoError);
+        setInstances(appwriteInstances);
+        return;
+      }
+
+      // 3. Detectar instancias desconectadas y eliminarlas silenciosamente
+      const toDelete = appwriteInstances.filter(
+        (inst) => !evolutionConnected.has(inst.instance_name)
+      );
+
+      if (toDelete.length > 0) {
+        console.log(`🧹 Eliminando ${toDelete.length} instancia(s) desconectada(s):`, toDelete.map(i => i.instance_name));
+
+        await Promise.allSettled(
+          toDelete.map(async (inst) => {
+            try {
+              // Intentar eliminar de EvolutionAPI (puede que ya no exista, ignorar error)
+              await fetch(`${serverUrl}/instance/delete/${inst.instance_name}`, {
+                method: 'DELETE',
+                headers: { apikey: apiKey },
+              });
+            } catch (_) { /* ignorar si ya no existe en Evolution */ }
+
+            // Eliminar de Appwrite
+            await databases.deleteDocument(databaseId, collectionId, inst.$id);
+            console.log(`🗑️ Instancia eliminada: ${inst.instance_name}`);
+          })
+        );
+      }
+
+      // 4. Actualizar estado solo con las instancias que siguen conectadas
+      const activeInstances = appwriteInstances.filter(
+        (inst) => evolutionConnected.has(inst.instance_name)
+      );
+      setInstances(activeInstances);
+
     } catch (error) {
       console.error('Error fetching instances:', error);
       notify.error({
@@ -132,7 +191,7 @@ export const InstanceManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [identity?.$id, databases, databaseId, collectionId]);
+  }, [identity?.$id, databases, databaseId, collectionId, serverUrl, apiKey]);
 
   useEffect(() => {
     if (identity?.$id) {
@@ -169,8 +228,8 @@ export const InstanceManager: React.FC = () => {
             chatwoot_conversation_pending: doc.chatwoot_conversation_pending ?? false,
             chatwoot_name_inbox: doc.chatwoot_name_inbox || '',
             chatwoot_merge_brazil_contacts: doc.chatwoot_merge_brazil_contacts ?? true,
-            chatwoot_import_contacts: doc.chatwoot_import_contacts ?? true,
-            chatwoot_import_messages: doc.chatwoot_import_messages ?? true,
+            chatwoot_import_contacts: doc.chatwoot_import_contacts ?? false,
+            chatwoot_import_messages: doc.chatwoot_import_messages ?? false,
             chatwoot_organization: doc.chatwoot_organization || 'ACO Assistant',
             chatwoot_logo: doc.chatwoot_logo || '',
           });
@@ -413,9 +472,9 @@ export const InstanceManager: React.FC = () => {
         evolutionBody.chatwootConversationPending = chatwootConfig.chatwoot_conversation_pending ?? false;
         evolutionBody.chatwootNameInbox = chatwootConfig.chatwoot_name_inbox || fullInstanceName;
         evolutionBody.chatwootMergeBrazilContacts = chatwootConfig.chatwoot_merge_brazil_contacts ?? true;
-        evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts ?? true;
-        evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages ?? true;
-        evolutionBody.chatwootDaysLimitImportMessages = 7;
+        evolutionBody.chatwootImportContacts = chatwootConfig.chatwoot_import_contacts ?? false;
+        evolutionBody.chatwootImportMessages = chatwootConfig.chatwoot_import_messages ?? false;
+        evolutionBody.chatwootDaysLimitImportMessages = 1;
         evolutionBody.chatwootOrganization = chatwootConfig.chatwoot_organization || 'ACO Assistant';
         evolutionBody.chatwootLogo = chatwootConfig.chatwoot_logo || 'https://evolution-api.com/files/evolution-api-favicon.png';
         
